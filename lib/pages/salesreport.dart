@@ -1,5 +1,6 @@
 import 'dart:io';
-
+import 'dart:math';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -120,6 +121,436 @@ class SalesReportService {
       }
       throw Exception('Error fetching sales summary: $e');
     }
+  }
+}
+
+class SalesBarChart extends StatelessWidget {
+  final List<SalesSummary> salesData;
+  final currencyFormat = NumberFormat("#,##0.00", "en_US");
+
+  SalesBarChart({super.key, required this.salesData});
+
+  BarChartGroupData _generateBarGroup(int x, double value) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: value,
+          color: const Color(0xFF2A2359),
+          width: 20,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTitles(double value, TitleMeta meta) {
+    const style = TextStyle(
+      color: Colors.grey,
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+    );
+
+    String text;
+    if (meta.axisSide == AxisSide.bottom) {
+      // For x-axis, show location names
+      text = salesData[value.toInt()].locationName;
+    } else {
+      // For y-axis, format currency values
+      text = 'LKR ${currencyFormat.format(value)}';
+    }
+
+    return SideTitleWidget(
+      axisSide: meta.axisSide,
+      child: RotatedBox(
+        quarterTurns: meta.axisSide == AxisSide.bottom ? 1 : 0,
+        child: Text(text, style: style),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate the maximum value and add 20% padding
+    final maxValue = salesData.isEmpty
+        ? 0.0
+        : salesData.map((e) => e.totalIncomeLKR).reduce((a, b) => a > b ? a : b);
+    final maxY = max(maxValue + (maxValue * 2), 1.0); // Ensure maxY is never 0
+
+    final double chartWidth = max(
+      (salesData.length * 60.0), // 60 pixels per bar + padding
+      MediaQuery.of(context).size.width + 64, // Minimum width with padding
+    );
+
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Total Income by Location',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF2A2359),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: chartWidth,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 32.0), // Add padding for last bar
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        maxY: maxY,
+                        minY: 0,
+                        barTouchData: BarTouchData(
+                          touchTooltipData: BarTouchTooltipData(
+                            tooltipBgColor: Colors.white,
+                            tooltipRoundedRadius: 8,
+                            tooltipPadding: const EdgeInsets.all(8),
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              if (groupIndex >= salesData.length) return null;
+                              return BarTooltipItem(
+                                '${salesData[groupIndex].locationName}\n',
+                                const TextStyle(
+                                  color: Color(0xFF2A2359),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: 'LKR ${currencyFormat.format(rod.toY)}',
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          show: true,
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 100,
+                              getTitlesWidget: _buildTitles,
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 100,
+                              getTitlesWidget: _buildTitles,
+                              interval: maxY / 5, // Show 5 intervals on y-axis
+                            ),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                        ),
+                        borderData: FlBorderData(
+                          show: true,
+                          border: const Border(
+                            bottom: BorderSide(color: Colors.grey, width: 1),
+                            left: BorderSide(color: Colors.grey, width: 1),
+                          ),
+                        ),
+                        barGroups: salesData
+                            .asMap()
+                            .entries
+                            .map((entry) => _generateBarGroup(
+                          entry.key,
+                          entry.value.totalIncomeLKR,
+                        ))
+                            .toList(),
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: maxY / 5,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: Colors.grey.withOpacity(0.2),
+                            strokeWidth: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class LocationDetailsChart extends StatelessWidget {
+  final SalesSummary locationData;
+  final currencyFormat = NumberFormat("#,##0.00", "en_US");
+
+  LocationDetailsChart({super.key, required this.locationData});
+
+  BarChartGroupData _generateBarGroup(int x, double value, String label) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: value,
+          color: const Color(0xFF2A2359),
+          width: 20,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+        ),
+      ],
+      // Removed showingTooltipIndicators to hide default tooltips
+    );
+  }
+
+  Widget _buildTitles(double value, TitleMeta meta) {
+    const style = TextStyle(
+      color: Colors.grey,
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+    );
+
+    final categories = [
+      'Total Income',
+      'Cash Income',
+      'Card Income',
+      'LKR',
+      'USD',
+      'AED',
+      'GBP',
+      'EUR',
+      'JPY',
+      'AUD',
+      'CAD',
+      'CHF',
+      'CNY',
+      'HKD',
+      'NZD',
+      'SGD',
+      'Visa',
+      'Master',
+      'Union Pay',
+      'Amex',
+      'WeChat'
+    ];
+
+    String text;
+    if (meta.axisSide == AxisSide.bottom) {
+      if (value.toInt() >= 0 && value.toInt() < categories.length) {
+        text = categories[value.toInt()];
+      } else {
+        text = '';
+      }
+    } else {
+      text = 'LKR ${currencyFormat.format(value)}';
+    }
+
+    return SideTitleWidget(
+      axisSide: meta.axisSide,
+      child: RotatedBox(
+        quarterTurns: meta.axisSide == AxisSide.bottom ? 1 : 0,
+        child: Text(text, style: style),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final values = [
+      locationData.totalIncomeLKR,
+      locationData.cashIncomeLKR,
+      locationData.cardIncomeLKR,
+      locationData.lkr,
+      locationData.usd,
+      locationData.aed,
+      locationData.gbp,
+      locationData.eur,
+      locationData.jpy,
+      locationData.aud,
+      locationData.cad,
+      locationData.chf,
+      locationData.cny,
+      locationData.hkd,
+      locationData.nzd,
+      locationData.sgd,
+      locationData.visaLKR,
+      locationData.masterLKR,
+      locationData.unionPayLKR,
+      locationData.amexLKR,
+      locationData.weChatLKR,
+    ];
+
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    // Limit the height by setting a fixed maxY value
+    final maxY = max(maxValue + (maxValue * 2), 1.0); // Ensure maxY is never 0
+
+    final categories = [
+      'Total Income',
+      'Cash Income',
+      'Card Income',
+      'LKR',
+      'USD',
+      'AED',
+      'GBP',
+      'EUR',
+      'JPY',
+      'AUD',
+      'CAD',
+      'CHF',
+      'CNY',
+      'HKD',
+      'NZD',
+      'SGD',
+      'Visa',
+      'Master',
+      'Union Pay',
+      'Amex',
+      'WeChat'
+    ];
+
+    return Dialog(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.5, // Reduced height
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    '${locationData.locationName}',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2A2359),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: max(MediaQuery.of(context).size.width * 0.85, 900),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            maxY: maxY,
+                            minY: 0,
+                            barTouchData: BarTouchData(
+                              enabled: true,
+                              handleBuiltInTouches: true,
+                              touchTooltipData: BarTouchTooltipData(
+                                tooltipBgColor: Colors.white,
+                                tooltipRoundedRadius: 8,
+                                tooltipPadding: const EdgeInsets.all(8),
+                                tooltipMargin: 8,
+                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                  return BarTooltipItem(
+                                    '${categories[groupIndex]}\n',
+                                    const TextStyle(
+                                      color: Color(0xFF2A2359),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: 'LKR ${currencyFormat.format(rod.toY)}',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.normal,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 120,
+                                  getTitlesWidget: _buildTitles,
+                                ),
+                              ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 100,
+                                  getTitlesWidget: _buildTitles,
+                                  interval: maxY / 5,
+                                ),
+                              ),
+                              rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                            ),
+                            borderData: FlBorderData(
+                              show: true,
+                              border: const Border(
+                                bottom: BorderSide(color: Colors.grey, width: 1),
+                                left: BorderSide(color: Colors.grey, width: 1),
+                              ),
+                            ),
+                            barGroups: values
+                                .asMap()
+                                .entries
+                                .map((entry) => _generateBarGroup(
+                              entry.key,
+                              entry.value,
+                              categories[entry.key],
+                            ))
+                                .toList(),
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              horizontalInterval: maxY / 5,
+                              getDrawingHorizontalLine: (value) => FlLine(
+                                color: Colors.grey.withOpacity(0.2),
+                                strokeWidth: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -429,7 +860,29 @@ class SalesReportPageState extends State<SalesReportPage> {
     final List<DataRow> rows = reportData.map((item) {
       return DataRow(
         cells: [
-          DataCell(Text(item.locationName)), // Left-aligned (default)
+          DataCell(
+            InkWell(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => LocationDetailsChart(locationData: item),
+                );
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.locationName,
+                    style: const TextStyle(
+                      color: Color(0xFF2A2359),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.bar_chart, size: 16, color: Color(0xFF2A2359)),
+                ],
+              ),
+            ),
+          ),
           // All other cells are center-aligned with fixed width
           ...[ // Using spread operator for the remaining cells
             item.totalIncomeLKR,
@@ -454,10 +907,21 @@ class SalesReportPageState extends State<SalesReportPage> {
             item.amexLKR,
             item.weChatLKR,
           ].map((value) => DataCell(
-            Container(
-              alignment: Alignment.centerRight,
-              child: Text(
-                NumberFormat('#,##0.00').format(value),
+            InkWell(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => LocationDetailsChart(locationData: item),
+                );
+              },
+              child: Container(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  NumberFormat('#,##0.00').format(value),
+                  style: const TextStyle(
+                    color: Colors.black87,
+                  ),
+                ),
               ),
             ),
           )),
@@ -630,6 +1094,11 @@ class SalesReportPageState extends State<SalesReportPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                height: 400, // Adjust height as needed
+                child: SalesBarChart(salesData: reportData),
               ),
               const SizedBox(height: 24),
               SingleChildScrollView(
