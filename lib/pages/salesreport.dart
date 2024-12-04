@@ -67,7 +67,7 @@ class SalesReportService {
   final String baseUrl;
 
   SalesReportService()
-      // : baseUrl = 'https://10.0.2.2:7153/Reports',
+  // : baseUrl = 'https://10.0.2.2:7153/Reports',
       : baseUrl = 'http://124.43.70.220:7072/Reports',
         _dio = Dio() {
     // Configure Dio for development environment
@@ -831,23 +831,23 @@ class SalesReportPageState extends State<SalesReportPage> {
     }
 
     return [
-    'GRAND TOTAL',
-    NumberFormat('#,##0.00').format(totalIncomeLKR),
-    NumberFormat('#,##0.00').format(cashIncomeLKR),
-    NumberFormat('#,##0.00').format(cardIncomeLKR),
-    NumberFormat('#,##0.00').format(lkr),
-    NumberFormat('#,##0.00').format(usd),
-    NumberFormat('#,##0.00').format(aed),
-    NumberFormat('#,##0.00').format(gbp),
-    NumberFormat('#,##0.00').format(eur),
-    NumberFormat('#,##0.00').format(jpy),
-    NumberFormat('#,##0.00').format(aud),
-    NumberFormat('#,##0.00').format(cad),
-    NumberFormat('#,##0.00').format(chf),
-    NumberFormat('#,##0.00').format(cny),
-    NumberFormat('#,##0.00').format(hkd),
-    NumberFormat('#,##0.00').format(nzd),
-    NumberFormat('#,##0.00').format(sgd),
+      'GRAND TOTAL',
+      NumberFormat('#,##0.00').format(totalIncomeLKR),
+      NumberFormat('#,##0.00').format(cashIncomeLKR),
+      NumberFormat('#,##0.00').format(cardIncomeLKR),
+      NumberFormat('#,##0.00').format(lkr),
+      NumberFormat('#,##0.00').format(usd),
+      NumberFormat('#,##0.00').format(aed),
+      NumberFormat('#,##0.00').format(gbp),
+      NumberFormat('#,##0.00').format(eur),
+      NumberFormat('#,##0.00').format(jpy),
+      NumberFormat('#,##0.00').format(aud),
+      NumberFormat('#,##0.00').format(cad),
+      NumberFormat('#,##0.00').format(chf),
+      NumberFormat('#,##0.00').format(cny),
+      NumberFormat('#,##0.00').format(hkd),
+      NumberFormat('#,##0.00').format(nzd),
+      NumberFormat('#,##0.00').format(sgd),
       NumberFormat('#,##0.00').format(visaLKR),
       NumberFormat('#,##0.00').format(masterLKR),
       NumberFormat('#,##0.00').format(unionPayLKR),
