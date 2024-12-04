@@ -957,163 +957,165 @@ class SalesReportPageState extends State<SalesReportPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        automaticallyImplyLeading: false,
-        toolbarHeight: 100,
-        flexibleSpace: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => Get.back(),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-                  label: const Text(
-                    'Back',
-                    style: TextStyle(color: Colors.white, fontSize: 20),
-                  ),
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                ),
-              ),
-            ),
-            Text(
-              'Sales Report',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 33,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Card(
-                    child: InkWell(
-                      onTap: () => _selectDate(context, true),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'From Date',
-                              style: GoogleFonts.poppins(color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              fromDate != null
-                                  ? DateFormat('yyyy-MM-dd').format(fromDate!)
-                                  : 'Select Date',
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).primaryColor,
+          automaticallyImplyLeading: false,
+          toolbarHeight: 100,
+          flexibleSpace: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                    label: const Text(
+                      'Back',
+                      style: TextStyle(color: Colors.white, fontSize: 20),
                     ),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Card(
-                    child: InkWell(
-                      onTap: () => _selectDate(context, false),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'To Date',
-                              style: GoogleFonts.poppins(color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              toDate != null
-                                  ? DateFormat('yyyy-MM-dd').format(toDate!)
-                                  : 'Select Date',
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: isLoading ? null : _generateReport,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(
-                'Generate Report',
+              Text(
+                'Location Wise Sales',
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
                   color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 33,
                 ),
               ),
-            ),
-            if (showReport) ...[
+            ],
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Card(
+                      child: InkWell(
+                        onTap: () => _selectDate(context, true),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'From Date',
+                                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                fromDate != null
+                                    ? DateFormat('yyyy-MM-dd').format(fromDate!)
+                                    : 'Select Date',
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Card(
+                      child: InkWell(
+                        onTap: () => _selectDate(context, false),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'To Date',
+                                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                toDate != null
+                                    ? DateFormat('yyyy-MM-dd').format(toDate!)
+                                    : 'Select Date',
+                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: isLoading ? null : _generatePDF,
-                icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-                label: Text(
-                  'Generate PDF',
+              ElevatedButton(
+                onPressed: isLoading ? null : _generateReport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                  'Generate Report',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              ),
+              if (showReport) ...[
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: isLoading ? null : _generatePDF,
+                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                  label: Text(
+                    'Generate PDF',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 400, // Adjust height as needed
-                child: SalesBarChart(salesData: reportData),
-              ),
-              const SizedBox(height: 24),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  horizontalMargin: 10,
-                  columnSpacing: 10,
-                  columns: _getHeaders()
-                      .map((header) => DataColumn(label: Text(header)))
-                      .toList(),
-                  rows: _generateTableRows(),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 400, // Adjust height as needed
+                  child: SalesBarChart(salesData: reportData),
                 ),
-              ),
+                const SizedBox(height: 24),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    horizontalMargin: 10,
+                    columnSpacing: 10,
+                    columns: _getHeaders()
+                        .map((header) => DataColumn(label: Text(header)))
+                        .toList(),
+                    rows: _generateTableRows(),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
