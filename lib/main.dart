@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:genix_reports/pages/login.dart';
+import 'package:genix_reports/pages/dashboard.dart';
 import 'package:get/get.dart';
 
 
@@ -20,6 +21,7 @@ class MyApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       home: const LoginPage(),
+      // home: const POSDashboard(),
     );
   }
 }

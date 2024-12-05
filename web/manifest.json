@@ -1,6 +1,6 @@
 {
-    "name": "ci_new_app",
-    "short_name": "ci_new_app",
+    "name": "Zam Gems Sales App",
+    "short_name": "Genix Reports",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
