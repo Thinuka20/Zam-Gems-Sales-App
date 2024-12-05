@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:genix_reports/pages/login.dart';
-import 'package:genix_reports/pages/dashboard.dart';
+import 'package:genix_reports/pages/menu.dart';
 import 'package:get/get.dart';
 
 
