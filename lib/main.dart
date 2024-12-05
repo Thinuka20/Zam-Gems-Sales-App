@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:genix_reports/pages/login.dart';
-import 'package:genix_reports/pages/menu.dart';
 import 'package:get/get.dart';
+import 'controllers/login_controller.dart';
 
 
 void main() {
+  Get.put(LoginController());
   runApp(const MyApp());
 }
 

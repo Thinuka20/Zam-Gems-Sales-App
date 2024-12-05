@@ -13,6 +13,11 @@ import 'package:printing/printing.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 
+import '../controllers/login_controller.dart';
+
+final loginController = Get.find<LoginController>();
+final datasource = loginController.datasource;
+
 class SalesSummary {
   final String locationName;
   final double totalIncomeLKR;
@@ -88,6 +93,7 @@ class SalesReportService {
     }
   }
 
+
   Future<List<SalesSummary>> getSalesSummary(
       DateTime startDate, DateTime endDate) async {
     try {
@@ -100,6 +106,7 @@ class SalesReportService {
         queryParameters: {
           'startDate': startDate.toIso8601String(),
           'endDate': endDate.toIso8601String(),
+          'connectionString':datasource,
         },
         options: Options(
           headers: {

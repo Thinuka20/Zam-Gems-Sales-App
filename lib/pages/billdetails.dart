@@ -3,9 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:genix_reports/pages/salesreport.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:get/get.dart';
 
 import 'billdetailcharts.dart';
