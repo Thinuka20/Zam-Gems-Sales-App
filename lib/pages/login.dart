@@ -1,26 +1,25 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:genix_reports/pages/menu.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'dashboard.dart';
+import '../controllers/login_controller.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
 
   late final Dio _dio;
-  final storage = const FlutterSecureStorage();
   final connectivity = Connectivity();
 
   ApiService._internal() {
     _dio = Dio(BaseOptions(
-      // baseUrl: 'https://10.0.2.2:7153/Reports',
       baseUrl: 'http://124.43.70.220:7072/Reports',
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
@@ -51,13 +50,18 @@ class ApiService {
           print('API Error: ${error.message}');
         }
         if (error.response?.statusCode == 401) {
-          await storage.delete(key: 'userId');
           Get.offAll(() => const LoginPage());
         }
         return handler.next(error);
       },
       onRequest: (request, handler) async {
-        if (!await checkConnection()) {
+        final hasConnection = await checkConnection();
+        if (kDebugMode) {
+          print('Connection check result: $hasConnection');
+          print('API Request: ${request.uri}');
+        }
+
+        if (!hasConnection) {
           return handler.reject(
             DioException(
               requestOptions: request,
@@ -65,9 +69,6 @@ class ApiService {
               type: DioExceptionType.connectionError,
             ),
           );
-        }
-        if (kDebugMode) {
-          print('API Request: ${request.uri}');
         }
         return handler.next(request);
       },
@@ -81,31 +82,93 @@ class ApiService {
   }
 
   Future<bool> checkConnection() async {
-    final connectivityResult = await connectivity.checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      return false;
-    }
     try {
-      final result = await InternetAddress.lookup('google.com');
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-    } on SocketException catch (_) {
+      final connectivityResult = await connectivity.checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        if (kDebugMode) {
+          print('No connectivity detected');
+        }
+        return false;
+      }
+
+      // Try connecting to the actual API endpoint
+      final testDio = Dio()
+        ..options.validateStatus = (status) {
+          // Accept any status code that indicates server is reachable
+          return status != null && status < 500;
+        };
+
+      if (kDebugMode) {
+        print('Attempting to connect to server...');
+      }
+
+      final response = await testDio.head(
+        'http://124.43.70.220:7072/Reports',
+        options: Options(
+          sendTimeout: const Duration(seconds: 5),
+        ),
+      );
+
+      if (kDebugMode) {
+        print('Server response status: ${response.statusCode}');
+      }
+
+      // Consider connection successful if we get any response from server
+      // including 404, which means server is reachable but endpoint not found
+      return true;
+
+    } catch (e) {
+      if (kDebugMode) {
+        print('Connection check error: $e');
+        if (e is DioException) {
+          print('DioError type: ${e.type}');
+          print('DioError message: ${e.message}');
+          print('DioError response: ${e.response}');
+        }
+      }
       return false;
     }
   }
 
-  Future<Map<String, dynamic>> login(String passcode) async {
+  Future<Map<String, dynamic>> login(String password, String username) async {
     try {
+      if (kDebugMode) {
+        print('Attempting login with username: $username');
+      }
+
       final response = await _dio.post(
         '/login',
-        data: {'passcode': passcode},
-        options: Options(
-          headers: {'Content-Type': 'application/json'},
-          responseType: ResponseType.json,
-        ),
+        data: {
+          'username': username,
+          'password': password,
+        },
       );
-      return response.data;
+
+      if (kDebugMode) {
+        print('Raw Response: ${response.data}');
+      }
+
+      // Ensure we're working with a Map<String, dynamic>
+      if (response.data is Map<String, dynamic>) {
+        return response.data;
+      } else if (response.data is String) {
+        return json.decode(response.data);
+      } else {
+        throw Exception('Unexpected response format');
+      }
+
     } on DioException catch (e) {
+      if (kDebugMode) {
+        print('Login error: ${e.message}');
+        print('Error type: ${e.type}');
+        print('Error response: ${e.response?.data}');
+      }
       throw _handleDioError(e);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Unexpected error during login: $e');
+      }
+      throw Exception('Network error: $e');
     }
   }
 
@@ -169,7 +232,10 @@ class RetryInterceptor extends Interceptor {
           method: err.requestOptions.method,
           headers: err.requestOptions.headers,
         );
-        options.extra = {...err.requestOptions.extra, 'retries': retriesRemaining};
+        options.extra = {
+          ...err.requestOptions.extra,
+          'retries': retriesRemaining
+        };
 
         final response = await dio.request(
           err.requestOptions.path,
@@ -203,6 +269,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class LoginPageState extends State<LoginPage> {
+  final _usernameController = TextEditingController();
   final _passcodeController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
@@ -211,6 +278,7 @@ class LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _passcodeController.dispose();
     super.dispose();
   }
@@ -221,41 +289,71 @@ class LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await _apiService.login(_passcodeController.text);
-      final userId = response['userId'];
-
-      await _apiService.storage.write(
-        key: 'userId',
-        value: userId.toString(),
-        aOptions: const AndroidOptions(
-          encryptedSharedPreferences: true,
-        ),
-        iOptions: const IOSOptions(
-          accessibility: KeychainAccessibility.first_unlock,
-        ),
-      );
-
-      Get.offAll(() => const DashboardPage());
-    } catch (e) {
-      if (mounted) {
-        Get.snackbar(
-          'Error',
-          e.toString(),
-          backgroundColor: Colors.red.withOpacity(0.8),
-          colorText: Colors.white,
-          snackPosition: SnackPosition.TOP,
-          duration: const Duration(seconds: 3),
-          margin: const EdgeInsets.all(10),
-        );
+      if (kDebugMode) {
+        print('Checking connection...');
       }
+
+      if (!await _apiService.checkConnection()) {
+        if (kDebugMode) {
+          print('Connection check failed');
+        }
+        throw Exception('No internet connection available');
+      }
+
+      final username = _usernameController.text.trim();
+      final password = _passcodeController.text.trim();
+
+      final response = await _apiService.login(password, username);
+      final loginController = Get.put(LoginController());
+      loginController.setLoginData(response);
+
+      // Print stored data
+      if (kDebugMode) {
+        print('Stored Login Data: ${loginController.loginData}');
+      }
+
+      if (mounted) {
+        Get.offAll(() => const DashboardPage());
+      }
+    } on DioException catch (e) {
+      _handleLoginError(e.message ?? 'Login failed');
+    } catch (e) {
+      _handleLoginError(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _handleLoginError(String error) {
+    if (!mounted) return;
+
+    _passcodeController.clear();
+
+    Get.snackbar(
+      'Login Failed',
+      error,
+      backgroundColor: Colors.red.withOpacity(0.8),
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 3),
+      margin: const EdgeInsets.all(10),
+      icon: const Icon(
+        Icons.error_outline,
+        color: Colors.white,
+      ),
+    );
+  }
+
   String? _validatePasscode(String? value) {
     if (value == null || value.isEmpty) {
       return 'Please enter your passcode';
+    }
+    return null;
+  }
+
+  String? _validateUsername(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your Username';
     }
     return null;
   }
@@ -332,6 +430,22 @@ class LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 24),
             TextFormField(
+              controller: _usernameController,
+              validator: _validateUsername,
+              decoration: InputDecoration(
+                labelText: 'Username',
+                prefixIcon: const Icon(Icons.account_circle_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
               controller: _passcodeController,
               obscureText: _obscurePasscode,
               validator: _validatePasscode,
@@ -342,7 +456,8 @@ class LoginPageState extends State<LoginPage> {
                   icon: Icon(
                     _obscurePasscode ? Icons.visibility : Icons.visibility_off,
                   ),
-                  onPressed: () => setState(() => _obscurePasscode = !_obscurePasscode),
+                  onPressed: () =>
+                      setState(() => _obscurePasscode = !_obscurePasscode),
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -368,21 +483,21 @@ class LoginPageState extends State<LoginPage> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : Text(
-                  'Login',
-                  style: GoogleFonts.poppins(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                        'Login',
+                        style: GoogleFonts.poppins(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 40),

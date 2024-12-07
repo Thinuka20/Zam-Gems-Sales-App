@@ -13,6 +13,12 @@ import 'package:printing/printing.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 
+import '../controllers/login_controller.dart';
+
+final loginController = Get.find<LoginController>();
+final datasource = loginController.datasource;
+final currency = loginController.currency;
+
 class SalesSummary {
   final String locationName;
   final double totalIncomeLKR;
@@ -88,6 +94,7 @@ class SalesReportService {
     }
   }
 
+
   Future<List<SalesSummary>> getSalesSummary(
       DateTime startDate, DateTime endDate) async {
     try {
@@ -100,6 +107,7 @@ class SalesReportService {
         queryParameters: {
           'startDate': startDate.toIso8601String(),
           'endDate': endDate.toIso8601String(),
+          'connectionString':datasource,
         },
         options: Options(
           headers: {
@@ -157,7 +165,7 @@ class SalesBarChart extends StatelessWidget {
       text = salesData[value.toInt()].locationName;
     } else {
       // For y-axis, format currency values
-      text = 'LKR ${currencyFormat.format(value)}';
+      text = '$currency ${currencyFormat.format(value)}';
     }
 
     return SideTitleWidget(
@@ -338,7 +346,7 @@ class LocationDetailsChart extends StatelessWidget {
       'AUD',
       'CAD',
       'CHF',
-      'CNY',
+      'RMB',
       'HKD',
       'NZD',
       'SGD',
@@ -357,7 +365,7 @@ class LocationDetailsChart extends StatelessWidget {
         text = '';
       }
     } else {
-      text = 'LKR ${currencyFormat.format(value)}';
+      text = '$currency ${currencyFormat.format(value)}';
     }
 
     return SideTitleWidget(
@@ -412,7 +420,7 @@ class LocationDetailsChart extends StatelessWidget {
       'AUD',
       'CAD',
       'CHF',
-      'CNY',
+      'RMB',
       'HKD',
       'NZD',
       'SGD',
@@ -479,7 +487,7 @@ class LocationDetailsChart extends StatelessWidget {
                                     ),
                                     children: [
                                       TextSpan(
-                                        text: 'LKR ${currencyFormat.format(rod.toY)}',
+                                        text: '$currency ${currencyFormat.format(rod.toY)}',
                                         style: const TextStyle(
                                           color: Colors.black,
                                           fontWeight: FontWeight.normal,
@@ -613,6 +621,20 @@ class SalesReportPageState extends State<SalesReportPage> {
       return;
     }
 
+    if (fromDate == toDate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('From date and To date cannot be same')),
+      );
+      return;
+    }
+
+    if (toDate!.isBefore(fromDate!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('End date must be after start date')),
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
       showReport = false;
@@ -727,9 +749,9 @@ class SalesReportPageState extends State<SalesReportPage> {
   List<String> _getHeaders() {
     return [
       'Location',
-      'Total Income (LKR)',
-      'Cash Income (LKR)',
-      'Card Income (LKR)',
+      'Total Income ($currency)',
+      'Cash Income ($currency)',
+      'Card Income ($currency)',
       'LKR',
       'USD',
       'AED',
@@ -739,15 +761,15 @@ class SalesReportPageState extends State<SalesReportPage> {
       'AUD',
       'CAD',
       'CHF',
-      'CNY',
+      'RMB',
       'HKD',
       'NZD',
       'SGD',
-      'Visa (LKR)',
-      'Master (LKR)',
-      'Union Pay (LKR)',
-      'Amex (LKR)',
-      'WeChat (LKR)',
+      'Visa ($currency)',
+      'Master ($currency)',
+      'Union Pay ($currency)',
+      'Amex ($currency)',
+      'WeChat ($currency)',
     ];
   }
 
