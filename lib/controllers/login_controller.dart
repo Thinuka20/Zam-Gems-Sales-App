@@ -30,4 +30,6 @@ class LoginController extends GetxController {
   String? get businessName => clientData?['businessName'] as String?;
   String? get datasource => clientData?['datasource'] as String?;
   String? get businessType => clientData?['businessType'] as String?;
+  String? get specialType => clientData?['details1'] as String?;
+  String? get currency => clientData?['details2'] as String?;
 }

@@ -4,8 +4,12 @@ import 'package:genix_reports/pages/billdetails.dart';
 import 'package:genix_reports/pages/datewise.dart';
 import 'package:genix_reports/pages/dashboard.dart';
 import 'package:genix_reports/pages/salesreport.dart';
+import 'package:genix_reports/pages/salesreport2.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
+
+import '../controllers/login_controller.dart';
+
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({Key? key}) : super(key: key);
@@ -38,7 +42,7 @@ class DashboardPage extends StatelessWidget {
             children: [
               InkWell(
                 onTap: () {
-                  Get.to(() => const POSDashboard());
+                  Get.to(() => POSDashboard());
                 },
                 child: Card(
                   color: Colors.white,
@@ -146,7 +150,14 @@ class DashboardPage extends StatelessWidget {
               const SizedBox(height: 10),
               InkWell(
                 onTap: () {
-                  Get.to(() => const SalesReportPage());
+                  final loginController = Get.find<LoginController>();
+                  final specialType = loginController.specialType;
+
+                  if(specialType == "GEM"){
+                    Get.to(() => const SalesReportPage());
+                  }else {
+                    Get.to(() => const SalesReportPage2());
+                  }
                 },
                 child: Card(
                   color: Colors.white,

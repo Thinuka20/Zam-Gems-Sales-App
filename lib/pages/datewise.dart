@@ -4,12 +4,25 @@ import 'package:genix_reports/pages/salesreport.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+import '../controllers/login_controller.dart';
+
+final loginController = Get.find<LoginController>();
+final datasource = loginController.datasource;
 
 class DateWiseBarChart extends StatelessWidget {
-  const DateWiseBarChart({Key? key}) : super(key: key);
+  final List<BillSummary> billSummaries;
+
+  const DateWiseBarChart({Key? key, required this.billSummaries}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final maxValue = billSummaries.isNotEmpty
+        ? billSummaries.map((summary) => summary.billCount).reduce((a, b) => a > b ? a : b).toDouble()
+        : 6000.0;
+
     return Card(
       margin: const EdgeInsets.all(16),
       child: Padding(
@@ -31,99 +44,110 @@ class DateWiseBarChart extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
                   width: MediaQuery.of(context).size.width * 2,
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: 6000,
-                      minY: 0,
-                      barGroups: [
-                        _createBarData(0, 6000, "15 Nov"),  // Adjust values as per your data
-                        _createBarData(1, 3500, "16 Nov"),
-                        _createBarData(2, 4200, "17 Nov"),
-                        _createBarData(3, 1800, "18 Nov"),
-                        _createBarData(4, 3800, "19 Nov"),
-                        _createBarData(5, 3800, "20 Nov"),
-                        _createBarData(6, 2500, "21 Nov"),
-                        _createBarData(7, 1200, "22 Nov"),
-                        _createBarData(8, 4200, "23 Nov"),
-                        _createBarData(9, 2500, "24 Nov"),
-                        _createBarData(10, 2500, "25 Nov"),
-                        _createBarData(11, 2300, "26 Nov"),
-                        _createBarData(12, 2800, "27 Nov"),
-                        _createBarData(13, 3900, "28 Nov"),
-                        _createBarData(14, 3800, "29 Nov"),
-                        _createBarData(15, 3000, "30 Nov"),
-                      ],
-                      gridData: const FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: 1000,
-                      ),
-                      borderData: FlBorderData(
-                        show: true,
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey[300]!),
-                          left: BorderSide(color: Colors.grey[300]!),
-                        ),
-                      ),
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 50,
-                            interval: 1000,
-                            getTitlesWidget: (value, meta) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: Text(
-                                  value.toInt().toString(),
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 16.0), // Added right padding for last bar
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.start, // Changed to start alignment
+                        barGroups: billSummaries.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          BillSummary summary = entry.value;
+                          return BarChartGroupData(
+                            x: index,
+                            barRods: [
+                              BarChartRodData(
+                                toY: summary.billCount.toDouble(),
+                                color: const Color(0xFF8B4513),
+                                width: 40,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(3),
+                                  topRight: Radius.circular(3),
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 40,
-                            interval: 1,
-                            getTitlesWidget: (value, meta) {
-                              return Transform.rotate(
-                                angle: 45 * 3.1415927 / 180,
-                                child: Text(
-                                  _getBottomTitle(value.toInt()),
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      barTouchData: BarTouchData(
-                        touchTooltipData: BarTouchTooltipData(
-                          tooltipBgColor: Colors.blueGrey,
-                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                            return BarTooltipItem(
-                              'Bills: ${rod.toY.toInt()}',
-                              const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
                               ),
-                            );
-                          },
+                            ],
+                            showingTooltipIndicators: [],
+                          );
+                        }).toList(),
+                        gridData: const FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: 1000,
+                        ),
+                        borderData: FlBorderData(
+                          show: true,
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[300]!),
+                            left: BorderSide(color: Colors.grey[300]!),
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 50,
+                              interval: (maxValue / 5).toDouble(),
+                              getTitlesWidget: (value, meta) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: Text(
+                                    value.toInt().toString(),
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 40,
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
+                                if (value >= 0 && value < billSummaries.length) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: Transform.rotate(
+                                      angle: 45 * 3.1415927 / 180,
+                                      child: Text(
+                                        DateFormat('dd MMM').format(billSummaries[value.toInt()].saleDate),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const Text('');
+                              },
+                            ),
+                          ),
+                        ),
+                        maxY: maxValue * 2,
+                        minY: 0,
+                        groupsSpace: 8,
+                        barTouchData: BarTouchData(
+                          touchTooltipData: BarTouchTooltipData(
+                            tooltipBgColor: Colors.blueGrey,
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              return BarTooltipItem(
+                                'Bills: ${rod.toY.toInt()}\nTotal: ${billSummaries[groupIndex].totalAmount.toStringAsFixed(2)}',
+                                const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -135,33 +159,6 @@ class DateWiseBarChart extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  BarChartGroupData _createBarData(int x, double value, String date) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: value,
-          color: const Color(0xFF8B4513),  // Brown color matching your image
-          width: 16,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(3),
-            topRight: Radius.circular(3),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _getBottomTitle(int value) {
-    final dates = [
-      "15 Nov 24", "16 Nov 24", "17 Nov 24", "18 Nov 24", "19 Nov 24",
-      "20 Nov 24", "21 Nov 24", "22 Nov 24", "23 Nov 24", "24 Nov 24",
-      "25 Nov 24", "26 Nov 24", "27 Nov 24", "28 Nov 24", "29 Nov 24",
-      "30 Nov 24"
-    ];
-    return value >= 0 && value < dates.length ? dates[value] : '';
   }
 }
 
@@ -177,6 +174,7 @@ class _DatewiseState extends State<Datewise> {
   DateTime? toDate;
   bool isLoading = false;
   List<SalesSummary> reportData = [];
+  List<BillSummary> billSummaries = [];
   bool showReport = false;
 
   Future<void> _selectDate(BuildContext context, bool isFromDate) async {
@@ -212,6 +210,55 @@ class _DatewiseState extends State<Datewise> {
           toDate = picked;
         }
       });
+    }
+  }
+
+  Future<void> _fetchBillSummary() async {
+    if (fromDate == null || toDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select both From and To dates')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      billSummaries = [];
+    });
+
+    try {
+      // Replace with your actual API endpoint
+      final response = await http.get(
+        Uri.parse(
+          'http://124.43.70.220:7072/Reports/billsummary?startDate=${fromDate!.toIso8601String()}&endDate=${toDate!.toIso8601String()}&connectionString=$datasource',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = json.decode(response.body);
+        setState(() {
+          billSummaries = responseData.map((data) => BillSummary(
+            saleDate: DateTime.parse(data['saleDate']),
+            billCount: data['billCount'],
+            totalAmount: data['totalAmount'],
+          )).toList();
+
+          // Sort summaries by date
+          billSummaries.sort((a, b) => a.saleDate.compareTo(b.saleDate));
+
+          isLoading = false;
+          showReport = true;
+        });
+      } else {
+        throw Exception('Failed to load bill summary');
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
     }
   }
 
@@ -321,11 +368,7 @@ class _DatewiseState extends State<Datewise> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    showReport = true;
-                  });
-                },
+                onPressed: _fetchBillSummary,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
@@ -336,7 +379,7 @@ class _DatewiseState extends State<Datewise> {
                 child: isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  'Generate Report',
+                  'Generate',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -344,8 +387,8 @@ class _DatewiseState extends State<Datewise> {
                   ),
                 ),
               ),
-              if (showReport) ...[
-                DateWiseBarChart(),
+              if (showReport && billSummaries.isNotEmpty) ...[
+                DateWiseBarChart(billSummaries: billSummaries),
               ],
             ],
           ),
@@ -353,4 +396,17 @@ class _DatewiseState extends State<Datewise> {
       ),
     );
   }
+}
+
+// Add BillSummary class if not already defined
+class BillSummary {
+  final DateTime saleDate;
+  final int billCount;
+  final double totalAmount;
+
+  BillSummary({
+    required this.saleDate,
+    required this.billCount,
+    required this.totalAmount,
+  });
 }
