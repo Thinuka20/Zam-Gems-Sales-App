@@ -233,7 +233,7 @@ class SalesBarChart extends StatelessWidget {
                                 ),
                                 children: [
                                   TextSpan(
-                                    text: 'LKR ${currencyFormat.format(rod.toY)}',
+                                    text: '$currency ${currencyFormat.format(rod.toY)}',
                                     style: const TextStyle(
                                       color: Colors.black,
                                       fontWeight: FontWeight.normal,
