@@ -800,13 +800,13 @@ class SalesReportPage2State extends State<SalesReportPage2> {
                 child: DataTable(
                   horizontalMargin: 10, // Removes left spacing
                   columnSpacing: 30,
-                  columns: const [
+                  columns: [
                     DataColumn(label: Text('Location')),
-                    DataColumn(label: Text('Total Sales (LKR)')),
-                    DataColumn(label: Text('Cash (LKR)')),
-                    DataColumn(label: Text('Card (LKR)')),
-                    DataColumn(label: Text('Credit (LKR)')),
-                    DataColumn(label: Text('Advance (LKR)')),
+                    DataColumn(label: Text('Total Sales ($currency)')),
+                    DataColumn(label: Text('Cash ($currency)')),
+                    DataColumn(label: Text('Card ($currency)')),
+                    DataColumn(label: Text('Credit ($currency)')),
+                    DataColumn(label: Text('Advance ($currency)')),
                   ],
                   rows: _generateTableRows(),
                 ),
