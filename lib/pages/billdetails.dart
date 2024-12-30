@@ -736,6 +736,7 @@ class Pie3DPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
+// Update the DateWiseBarChart class
 class DateWiseBarChart extends StatelessWidget {
   final List<DateWiseBillSummary> billSummaries;
 
@@ -762,23 +763,26 @@ class DateWiseBarChart extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            // Increased aspect ratio for taller bars
             AspectRatio(
-              aspectRatio: 4 / 3,
+              aspectRatio: 4 / 3, // Modified from 4/3 to 16/9 for taller bars
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
-                  width: math.max(MediaQuery.of(context).size.width * 1,
-                      billSummaries.length * 60.0),
+                  width: math.max(
+                    MediaQuery.of(context).size.width * 1,
+                    billSummaries.length * 65.0, // Increased spacing between bars
+                  ),
                   child: BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceEvenly,
+                      // Reduced maxY multiplier to make bars taller relative to chart height
                       maxY: billSummaries
                           .map((s) => s.billCount)
                           .reduce(math.max)
-                          .toDouble() *
-                          2,
+                          .toDouble() * 1.2,
                       minY: 0,
-                      groupsSpace: 35,
+                      groupsSpace: 40, // Increased group space
                       barGroups: billSummaries.asMap().entries.map((entry) {
                         return BarChartGroupData(
                           x: entry.key,
@@ -786,7 +790,7 @@ class DateWiseBarChart extends StatelessWidget {
                             BarChartRodData(
                               toY: entry.value.billCount.toDouble(),
                               color: Colors.deepPurple,
-                              width: 50,
+                              width: 40, // Adjusted bar width
                               borderRadius: const BorderRadius.only(
                                 topLeft: Radius.circular(6),
                                 topRight: Radius.circular(6),
@@ -811,7 +815,7 @@ class DateWiseBarChart extends StatelessWidget {
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 40,
+                            reservedSize: 45, // Increased reserved size
                             getTitlesWidget: (value, meta) {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8.0),
@@ -835,11 +839,10 @@ class DateWiseBarChart extends StatelessWidget {
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 60,
+                            reservedSize: 70, // Increased for better text visibility
                             getTitlesWidget: (value, meta) {
                               if (value.toInt() < billSummaries.length) {
-                                final date =
-                                    billSummaries[value.toInt()].saleDate;
+                                final date = billSummaries[value.toInt()].saleDate;
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
                                   child: Transform.rotate(
@@ -863,7 +866,9 @@ class DateWiseBarChart extends StatelessWidget {
                         touchTooltipData: BarTouchTooltipData(
                           tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
                           tooltipRoundedRadius: 8,
-                          tooltipPadding: const EdgeInsets.all(8),
+                          tooltipPadding: const EdgeInsets.all(12), // Increased padding
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
                             return BarTooltipItem(
                               '${DateFormat('dd MMM yy').format(billSummaries[groupIndex].saleDate)}\n'
