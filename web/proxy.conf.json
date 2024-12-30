@@ -1,0 +1,10 @@
+{
+  "/api": {
+    "target": "http://124.43.70.220:7072",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api": "/Reports"
+    }
+  }
+}

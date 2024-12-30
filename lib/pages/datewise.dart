@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../controllers/login_controller.dart';
 
@@ -39,16 +40,19 @@ class DateWiseBarChart extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             AspectRatio(
-              aspectRatio: 16 / 9,
+              aspectRatio: 4 / 3, // Modified aspect ratio for taller bars
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 2,
+                  width: math.max(
+                      MediaQuery.of(context).size.width * 1.5,
+                      billSummaries.length * 65.0
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 16.0), // Added right padding for last bar
+                    padding: const EdgeInsets.only(right: 24.0, bottom: 12.0), // Increased padding
                     child: BarChart(
                       BarChartData(
-                        alignment: BarChartAlignment.start, // Changed to start alignment
+                        alignment: BarChartAlignment.spaceEvenly,
                         barGroups: billSummaries.asMap().entries.map((entry) {
                           int index = entry.key;
                           BillSummary summary = entry.value;
@@ -60,18 +64,17 @@ class DateWiseBarChart extends StatelessWidget {
                                 color: const Color(0xFF8B4513),
                                 width: 40,
                                 borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(3),
-                                  topRight: Radius.circular(3),
+                                  topLeft: Radius.circular(6),
+                                  topRight: Radius.circular(6),
                                 ),
                               ),
                             ],
-                            showingTooltipIndicators: [],
                           );
                         }).toList(),
-                        gridData: const FlGridData(
+                        gridData: FlGridData(
                           show: true,
                           drawVerticalLine: false,
-                          horizontalInterval: 1000,
+                          horizontalInterval: maxValue / 6, // Adjusted interval
                         ),
                         borderData: FlBorderData(
                           show: true,
@@ -85,12 +88,12 @@ class DateWiseBarChart extends StatelessWidget {
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 50,
-                              interval: (maxValue / 5).toDouble(),
+                              interval: maxValue / 5,
                               getTitlesWidget: (value, meta) {
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
                                   child: Text(
-                                    value.toInt().toString(),
+                                    NumberFormat('#,###').format(value.toInt()),
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 12,
@@ -109,16 +112,16 @@ class DateWiseBarChart extends StatelessWidget {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 40,
+                              reservedSize: 70, // Increased reserved size
                               interval: 1,
                               getTitlesWidget: (value, meta) {
                                 if (value >= 0 && value < billSummaries.length) {
                                   return Padding(
-                                    padding: const EdgeInsets.only(top: 5),
+                                    padding: const EdgeInsets.only(top: 8.0),
                                     child: Transform.rotate(
-                                      angle: 45 * 3.1415927 / 180,
+                                      angle: -0.5, // Adjusted rotation angle
                                       child: Text(
-                                        DateFormat('dd MMM').format(billSummaries[value.toInt()].saleDate),
+                                        DateFormat('dd MMM yy').format(billSummaries[value.toInt()].saleDate),
                                         style: TextStyle(
                                           color: Colors.grey[600],
                                           fontSize: 12,
@@ -132,15 +135,22 @@ class DateWiseBarChart extends StatelessWidget {
                             ),
                           ),
                         ),
-                        maxY: maxValue * 2,
+                        maxY: maxValue * 1.2, // Adjusted multiplier for better bar height
                         minY: 0,
-                        groupsSpace: 8,
+                        groupsSpace: 40, // Increased space between groups
                         barTouchData: BarTouchData(
                           touchTooltipData: BarTouchTooltipData(
-                            tooltipBgColor: Colors.blueGrey,
+                            tooltipBgColor: Colors.blueGrey.withOpacity(0.9),
+                            tooltipRoundedRadius: 8,
+                            tooltipPadding: const EdgeInsets.all(12),
+                            fitInsideHorizontally: true,
+                            fitInsideVertically: true,
                             getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              final summary = billSummaries[groupIndex];
                               return BarTooltipItem(
-                                'Bills: ${rod.toY.toInt()}\nTotal: ${billSummaries[groupIndex].totalAmount.toStringAsFixed(2)}',
+                                '${DateFormat('dd MMM yy').format(summary.saleDate)}\n'
+                                    'Bills: ${NumberFormat('#,###').format(rod.toY.toInt())}\n'
+                                    'Total: ${NumberFormat.currency(symbol: '').format(summary.totalAmount)}',
                                 const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -161,7 +171,6 @@ class DateWiseBarChart extends StatelessWidget {
     );
   }
 }
-
 class Datewise extends StatefulWidget {
   const Datewise({super.key});
 

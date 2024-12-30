@@ -2,14 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:genix_reports/pages/menu.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:get/get.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../controllers/login_controller.dart';
+import 'menu.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -24,15 +25,23 @@ class ApiService {
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 30),
+      // Add these headers for web support
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
     ));
 
-    _dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = HttpClient();
-        client.badCertificateCallback = (cert, host, port) => true;
-        return client;
-      },
-    );
+    // Only use IOHttpClientAdapter for non-web platforms
+    if (!kIsWeb) {
+      _dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.badCertificateCallback = (cert, host, port) => true;
+          return client;
+        },
+      );
+    }
 
     _dio.interceptors.add(RetryInterceptor(
       dio: _dio,
@@ -48,7 +57,22 @@ class ApiService {
       onError: (error, handler) async {
         if (kDebugMode) {
           print('API Error: ${error.message}');
+          print('Error type: ${error.type}');
+          print('Error response: ${error.response?.data}');
+          print('Error status code: ${error.response?.statusCode}');
         }
+
+        // Handle web-specific CORS errors
+        if (kIsWeb && error.type == DioExceptionType.badResponse) {
+          if (error.response?.statusCode == 0) {
+            return handler.reject(DioException(
+              requestOptions: error.requestOptions,
+              error: 'CORS error: Unable to access the API. Please check server configuration.',
+              type: DioExceptionType.badResponse,
+            ));
+          }
+        }
+
         if (error.response?.statusCode == 401) {
           Get.offAll(() => const LoginPage());
         }
@@ -59,6 +83,7 @@ class ApiService {
         if (kDebugMode) {
           print('Connection check result: $hasConnection');
           print('API Request: ${request.uri}');
+          print('Request headers: ${request.headers}');
         }
 
         if (!hasConnection) {
@@ -75,6 +100,7 @@ class ApiService {
       onResponse: (response, handler) {
         if (kDebugMode) {
           print('API Response: ${response.statusCode}');
+          print('Response data: ${response.data}');
         }
         return handler.next(response);
       },
@@ -83,6 +109,12 @@ class ApiService {
 
   Future<bool> checkConnection() async {
     try {
+      if (kIsWeb) {
+        // For web, we'll do a simple connectivity check
+        final connectivityResult = await connectivity.checkConnectivity();
+        return connectivityResult != ConnectivityResult.none;
+      }
+
       final connectivityResult = await connectivity.checkConnectivity();
       if (connectivityResult == ConnectivityResult.none) {
         if (kDebugMode) {
@@ -91,10 +123,9 @@ class ApiService {
         return false;
       }
 
-      // Try connecting to the actual API endpoint
+      // Modified connection test for web compatibility
       final testDio = Dio()
         ..options.validateStatus = (status) {
-          // Accept any status code that indicates server is reachable
           return status != null && status < 500;
         };
 
@@ -106,6 +137,10 @@ class ApiService {
         'http://124.43.70.220:7072/Reports',
         options: Options(
           sendTimeout: const Duration(seconds: 5),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
         ),
       );
 
@@ -113,10 +148,7 @@ class ApiService {
         print('Server response status: ${response.statusCode}');
       }
 
-      // Consider connection successful if we get any response from server
-      // including 404, which means server is reachable but endpoint not found
       return true;
-
     } catch (e) {
       if (kDebugMode) {
         print('Connection check error: $e');
@@ -148,7 +180,6 @@ class ApiService {
         print('Raw Response: ${response.data}');
       }
 
-      // Ensure we're working with a Map<String, dynamic>
       if (response.data is Map<String, dynamic>) {
         return response.data;
       } else if (response.data is String) {
@@ -156,7 +187,6 @@ class ApiService {
       } else {
         throw Exception('Unexpected response format');
       }
-
     } on DioException catch (e) {
       if (kDebugMode) {
         print('Login error: ${e.message}');
@@ -173,6 +203,12 @@ class ApiService {
   }
 
   String _handleDioError(DioException error) {
+    if (kIsWeb && error.type == DioExceptionType.badResponse) {
+      if (error.response?.statusCode == 0) {
+        return 'Unable to access the server. Please check CORS configuration.';
+      }
+    }
+
     if (error.error is String) return error.error.toString();
 
     switch (error.type) {
@@ -183,7 +219,7 @@ class ApiService {
       case DioExceptionType.badResponse:
         switch (error.response?.statusCode) {
           case 400:
-            return 'Invalid passcode';
+            return 'Invalid credentials';
           case 401:
             return 'Unauthorized access';
           case 404:
@@ -483,21 +519,21 @@ class LoginPageState extends State<LoginPage> {
                 ),
                 child: _isLoading
                     ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
                     : Text(
-                        'Login',
-                        style: GoogleFonts.poppins(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                  'Login',
+                  style: GoogleFonts.poppins(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 40),

@@ -1,5 +1,5 @@
+import 'dart:html' as html;
 import 'dart:io';
-import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
@@ -12,8 +12,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
-
+import 'dart:math' as math;
+import 'dart:math' show pow, log, ln10;
 import '../controllers/login_controller.dart';
+import 'dart:typed_data';  // For Uint8List
 
 final loginController = Get.find<LoginController>();
 final datasource = loginController.datasource;
@@ -73,18 +75,28 @@ class SalesReportService {
   final String baseUrl;
 
   SalesReportService()
-  // : baseUrl = 'https://10.0.2.2:7153/Reports',
       : baseUrl = 'http://124.43.70.220:7072/Reports',
-        _dio = Dio() {
-    // Configure Dio for development environment
-    (_dio.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate =
-        (HttpClient client) {
-      client.badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true;
-      return client;
-    };
+        _dio = Dio(BaseOptions(
+          baseUrl: 'http://124.43.70.220:7072/Reports',
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        )) {
+    // Only configure IOHttpClientAdapter for non-web platforms
+    if (!kIsWeb) {
+      (_dio.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate =
+          (HttpClient client) {
+        client.badCertificateCallback =
+            (X509Certificate cert, String host, int port) => true;
+        return client;
+      };
+    }
 
-    // Add logging for debugging
+    // Add logging interceptor for debugging
     if (kDebugMode) {
       _dio.interceptors.add(LogInterceptor(
         requestBody: true,
@@ -94,7 +106,6 @@ class SalesReportService {
     }
   }
 
-
   Future<List<SalesSummary>> getSalesSummary(
       DateTime startDate, DateTime endDate) async {
     try {
@@ -103,29 +114,29 @@ class SalesReportService {
       }
 
       final response = await _dio.get(
-        '$baseUrl/salessummary',
+        '/salessummary',
         queryParameters: {
           'startDate': startDate.toIso8601String(),
           'endDate': endDate.toIso8601String(),
-          'connectionString':datasource,
+          'connectionString': datasource,
         },
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        ),
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         return data.map((json) => SalesSummary.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load sales summary. Status: ${response.statusCode}');
+        throw Exception(
+            'Failed to load sales summary. Status: ${response.statusCode}');
       }
     } catch (e) {
       if (kDebugMode) {
         print('Error in getSalesSummary: $e');
+        if (e is DioException) {
+          print('DioError type: ${e.type}');
+          print('DioError message: ${e.message}');
+          print('DioError response: ${e.response}');
+        }
       }
       throw Exception('Error fetching sales summary: $e');
     }
@@ -138,6 +149,30 @@ class SalesBarChart extends StatelessWidget {
 
   SalesBarChart({super.key, required this.salesData});
 
+  double _calculateInterval(double maxValue) {
+    if (maxValue <= 0) return 1;
+
+    double interval = maxValue / 5;
+    if (interval < 0.1) {
+      interval = 0.1;
+    }
+
+    double magnitude = pow(10, log(interval) ~/ ln10).toDouble();
+    double normalized = interval / magnitude;
+
+    if (normalized < 1.5) {
+      normalized = 1;
+    } else if (normalized < 3) {
+      normalized = 2;
+    } else if (normalized < 7) {
+      normalized = 5;
+    } else {
+      normalized = 10;
+    }
+
+    return normalized * magnitude;
+  }
+
   BarChartGroupData _generateBarGroup(int x, double value) {
     return BarChartGroupData(
       x: x,
@@ -145,26 +180,28 @@ class SalesBarChart extends StatelessWidget {
         BarChartRodData(
           toY: value,
           color: const Color(0xFF2A2359),
-          width: 20,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          width: 40,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
         ),
       ],
     );
   }
 
   Widget _buildTitles(double value, TitleMeta meta) {
-    const style = TextStyle(
-      color: Colors.grey,
-      fontSize: 10,
+    final style = TextStyle(
+      color: Colors.grey[600],
+      fontSize: 12,
       fontWeight: FontWeight.bold,
     );
 
     String text;
     if (meta.axisSide == AxisSide.bottom) {
-      // For x-axis, show location names
-      text = salesData[value.toInt()].locationName;
+      if (value.toInt() >= 0 && value.toInt() < salesData.length) {
+        text = salesData[value.toInt()].locationName;
+      } else {
+        text = '';
+      }
     } else {
-      // For y-axis, format currency values
       text = '$currency ${currencyFormat.format(value)}';
     }
 
@@ -179,16 +216,22 @@ class SalesBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calculate the maximum value and add 20% padding
     final maxValue = salesData.isEmpty
         ? 0.0
-        : salesData.map((e) => e.totalIncomeLKR).reduce((a, b) => a > b ? a : b);
-    final maxY = max(maxValue + (maxValue * 2), 1.0); // Ensure maxY is never 0
+        : salesData
+        .map((e) => e.totalIncomeLKR)
+        .reduce((a, b) => a > b ? a : b);
+    final maxY = maxValue * 1.2;
 
-    final double chartWidth = max(
-      (salesData.length * 60.0), // 60 pixels per bar + padding
-      MediaQuery.of(context).size.width + 64, // Minimum width with padding
+    // Calculate minimum width based on data points
+    final double minWidth = math.max(
+      MediaQuery.of(context).size.width,
+      salesData.length * 65.0,
     );
+
+    // Calculate responsive height based on screen size
+    final screenHeight = MediaQuery.of(context).size.height;
+    final double chartHeight = screenHeight * 0.6; // 60% of screen height
 
     return Card(
       elevation: 4,
@@ -206,36 +249,39 @@ class SalesBarChart extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            Expanded(
+            SizedBox(
+              height: chartHeight,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
-                  width: chartWidth,
+                  width: minWidth,
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 32.0), // Add padding for last bar
+                    padding: const EdgeInsets.only(right: 24.0),
                     child: BarChart(
                       BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
+                        alignment: BarChartAlignment.spaceEvenly,
                         maxY: maxY,
                         minY: 0,
+                        groupsSpace: 40,
                         barTouchData: BarTouchData(
                           touchTooltipData: BarTouchTooltipData(
-                            tooltipBgColor: Colors.white,
+                            tooltipBgColor: Colors.blueGrey.withOpacity(0.9),
                             tooltipRoundedRadius: 8,
-                            tooltipPadding: const EdgeInsets.all(8),
+                            tooltipPadding: const EdgeInsets.all(12),
+                            fitInsideHorizontally: true,
+                            fitInsideVertically: true,
                             getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                              if (groupIndex >= salesData.length) return null;
                               return BarTooltipItem(
                                 '${salesData[groupIndex].locationName}\n',
                                 const TextStyle(
-                                  color: Color(0xFF2A2359),
+                                  color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 children: [
                                   TextSpan(
                                     text: '$currency ${currencyFormat.format(rod.toY)}',
                                     style: const TextStyle(
-                                      color: Colors.black,
+                                      color: Colors.white,
                                       fontWeight: FontWeight.normal,
                                     ),
                                   ),
@@ -245,20 +291,12 @@ class SalesBarChart extends StatelessWidget {
                           ),
                         ),
                         titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 100,
-                              getTitlesWidget: _buildTitles,
-                            ),
-                          ),
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 100,
                               getTitlesWidget: _buildTitles,
-                              interval: maxY / 5, // Show 5 intervals on y-axis
+                              interval: _calculateInterval(maxY),
                             ),
                           ),
                           rightTitles: const AxisTitles(
@@ -267,12 +305,28 @@ class SalesBarChart extends StatelessWidget {
                           topTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 120,
+                              getTitlesWidget: _buildTitles,
+                            ),
+                          ),
+                        ),
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: _calculateInterval(maxY),
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: Colors.grey.withOpacity(0.2),
+                            strokeWidth: 1,
+                          ),
                         ),
                         borderData: FlBorderData(
                           show: true,
-                          border: const Border(
-                            bottom: BorderSide(color: Colors.grey, width: 1),
-                            left: BorderSide(color: Colors.grey, width: 1),
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[300]!),
+                            left: BorderSide(color: Colors.grey[300]!),
                           ),
                         ),
                         barGroups: salesData
@@ -283,15 +337,6 @@ class SalesBarChart extends StatelessWidget {
                           entry.value.totalIncomeLKR,
                         ))
                             .toList(),
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          horizontalInterval: maxY / 5,
-                          getDrawingHorizontalLine: (value) => FlLine(
-                            color: Colors.grey.withOpacity(0.2),
-                            strokeWidth: 1,
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -311,6 +356,30 @@ class LocationDetailsChart extends StatelessWidget {
 
   LocationDetailsChart({super.key, required this.locationData});
 
+  double _calculateInterval(double maxValue) {
+    if (maxValue <= 0) return 1;
+
+    double interval = maxValue / 5;
+    if (interval < 0.1) {
+      interval = 0.1;
+    }
+
+    double magnitude = pow(10, log(interval) ~/ ln10).toDouble();
+    double normalized = interval / magnitude;
+
+    if (normalized < 1.5) {
+      normalized = 1;
+    } else if (normalized < 3) {
+      normalized = 2;
+    } else if (normalized < 7) {
+      normalized = 5;
+    } else {
+      normalized = 10;
+    }
+
+    return normalized * magnitude;
+  }
+
   BarChartGroupData _generateBarGroup(int x, double value, String label) {
     return BarChartGroupData(
       x: x,
@@ -318,18 +387,17 @@ class LocationDetailsChart extends StatelessWidget {
         BarChartRodData(
           toY: value,
           color: const Color(0xFF2A2359),
-          width: 20,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          width: 40,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
         ),
       ],
-      // Removed showingTooltipIndicators to hide default tooltips
     );
   }
 
   Widget _buildTitles(double value, TitleMeta meta) {
-    const style = TextStyle(
-      color: Colors.grey,
-      fontSize: 10,
+    final style = TextStyle(
+      color: Colors.grey[600],
+      fontSize: 12,
       fontWeight: FontWeight.bold,
     );
 
@@ -404,8 +472,7 @@ class LocationDetailsChart extends StatelessWidget {
     ];
 
     final maxValue = values.reduce((a, b) => a > b ? a : b);
-    // Limit the height by setting a fixed maxY value
-    final maxY = max(maxValue + (maxValue * 2), 1.0); // Ensure maxY is never 0
+    final maxY = maxValue * 1.2;
 
     final categories = [
       'Total Income',
@@ -435,7 +502,7 @@ class LocationDetailsChart extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.5, // Reduced height
+        height: MediaQuery.of(context).size.height * 0.5,
         child: Column(
           children: [
             Row(
@@ -443,11 +510,11 @@ class LocationDetailsChart extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${locationData.locationName}',
+                    locationData.locationName,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2A2359),
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2A2359),
+                        ),
                   ),
                 ),
                 IconButton(
@@ -461,96 +528,91 @@ class LocationDetailsChart extends StatelessWidget {
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
-                  width: max(MediaQuery.of(context).size.width * 0.85, 900),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: BarChart(
-                          BarChartData(
-                            alignment: BarChartAlignment.spaceAround,
-                            maxY: maxY,
-                            minY: 0,
-                            barTouchData: BarTouchData(
-                              enabled: true,
-                              handleBuiltInTouches: true,
-                              touchTooltipData: BarTouchTooltipData(
-                                tooltipBgColor: Colors.white,
-                                tooltipRoundedRadius: 8,
-                                tooltipPadding: const EdgeInsets.all(8),
-                                tooltipMargin: 8,
-                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                  return BarTooltipItem(
-                                    '${categories[groupIndex]}\n',
-                                    const TextStyle(
-                                      color: Color(0xFF2A2359),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    children: [
-                                      TextSpan(
-                                        text: '$currency ${currencyFormat.format(rod.toY)}',
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.normal,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
+                  width: math.max(MediaQuery.of(context).size.width * 0.85,
+                      values.length * 65.0),
+                  child: BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceEvenly,
+                      maxY: maxY,
+                      minY: 0,
+                      groupsSpace: 40,
+                      barTouchData: BarTouchData(
+                        touchTooltipData: BarTouchTooltipData(
+                          tooltipBgColor: Colors.blueGrey.withOpacity(0.9),
+                          tooltipRoundedRadius: 8,
+                          tooltipPadding: const EdgeInsets.all(12),
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            return BarTooltipItem(
+                              '${categories[groupIndex]}\n',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 120,
-                                  getTitlesWidget: _buildTitles,
+                              children: [
+                                TextSpan(
+                                  text:
+                                      '$currency ${currencyFormat.format(rod.toY)}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.normal,
+                                  ),
                                 ),
-                              ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 100,
-                                  getTitlesWidget: _buildTitles,
-                                  interval: maxY / 5,
-                                ),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(
-                              show: true,
-                              border: const Border(
-                                bottom: BorderSide(color: Colors.grey, width: 1),
-                                left: BorderSide(color: Colors.grey, width: 1),
-                              ),
-                            ),
-                            barGroups: values
-                                .asMap()
-                                .entries
-                                .map((entry) => _generateBarGroup(
-                              entry.key,
-                              entry.value,
-                              categories[entry.key],
-                            ))
-                                .toList(),
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: maxY / 5,
-                              getDrawingHorizontalLine: (value) => FlLine(
-                                color: Colors.grey.withOpacity(0.2),
-                                strokeWidth: 1,
-                              ),
-                            ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 100,
+                            getTitlesWidget: _buildTitles,
+                            interval: _calculateInterval(maxY),
+                          ),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 120,
+                            getTitlesWidget: _buildTitles,
                           ),
                         ),
                       ),
-                    ],
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: _calculateInterval(maxY),
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: Colors.grey.withOpacity(0.2),
+                          strokeWidth: 1,
+                        ),
+                      ),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey[300]!),
+                          left: BorderSide(color: Colors.grey[300]!),
+                        ),
+                      ),
+                      barGroups: values
+                          .asMap()
+                          .entries
+                          .map((entry) => _generateBarGroup(
+                                entry.key,
+                                entry.value,
+                                categories[entry.key],
+                              ))
+                          .toList(),
+                    ),
                   ),
                 ),
               ),
@@ -569,7 +631,58 @@ class SalesReportPage extends StatefulWidget {
   SalesReportPageState createState() => SalesReportPageState();
 }
 
-class SalesReportPageState extends State<SalesReportPage> {
+mixin PwaPdfGenerator {
+  static bool get isPwa {
+    if (kIsWeb) {
+      // Use matchMedia to detect standalone mode (PWA)
+      return html.window.matchMedia('(display-mode: standalone)').matches ||
+          html.window.navigator.userAgent.toLowerCase().contains('wv'); // WebView detection
+    }
+    return false;
+  }
+
+  static Future<void> generateAndDownloadPdf({
+    required Future<Uint8List> Function() generatePdf,
+    required String filename,
+  }) async {
+    try {
+      final bytes = await generatePdf();
+
+      if (isPwa) {
+        // PWA mode - force download
+        final blob = html.Blob([bytes], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+
+        final anchor = html.AnchorElement()
+          ..href = url
+          ..style.display = 'none'
+          ..download = filename;
+
+        html.document.body?.children.add(anchor);
+
+        // Use Future.delayed to ensure the anchor is added before clicking
+        await Future.delayed(const Duration(milliseconds: 100));
+        anchor.click();
+
+        // Cleanup after a short delay to ensure download starts
+        await Future.delayed(const Duration(milliseconds: 100));
+        html.document.body?.children.remove(anchor);
+        html.Url.revokeObjectUrl(url);
+      } else {
+        // Regular web mode - use printing package
+        await Printing.layoutPdf(
+          onLayout: (format) => Future.value(bytes),
+          name: filename,
+        );
+      }
+    } catch (e) {
+      print('Error generating PDF: $e');
+      rethrow;
+    }
+  }
+}
+
+class SalesReportPageState extends State<SalesReportPage> with PwaPdfGenerator {
   final SalesReportService _service = SalesReportService();
   DateTime? fromDate;
   DateTime? toDate;
@@ -657,77 +770,84 @@ class SalesReportPageState extends State<SalesReportPage> {
     }
   }
 
-  Future<void> _generatePDF() async {
-    setState(() => isLoading = true);
-    try {
-      final pdf = pw.Document();
-      final imageBytes = await rootBundle.load('assets/images/skynet_pro.jpg');
-      final image = pw.MemoryImage(imageBytes.buffer.asUint8List());
+Future<void> _generatePDF() async {
+  setState(() => isLoading = true);
+  try {
+    final filename = 'sales_report_${DateFormat('yyyy_MM_dd').format(DateTime.now())}.pdf';
 
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a3.landscape,
-          margin: const pw.EdgeInsets.all(40),
-          build: (pw.Context context) {
-            return [
-              pw.Header(
-                level: 0,
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Image(image, width: 100),
-                    pw.Text(
-                      'Sales Report',
-                      style: pw.TextStyle(
-                        fontSize: 20,
-                        fontWeight: pw.FontWeight.bold,
+    await PwaPdfGenerator.generateAndDownloadPdf(
+      filename: filename,
+      generatePdf: () async {
+        final pdf = pw.Document();
+        final imageBytes = await rootBundle.load('assets/images/skynet_pro.jpg');
+        final image = pw.MemoryImage(imageBytes.buffer.asUint8List());
+
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.a3.landscape,
+            margin: const pw.EdgeInsets.all(40),
+            build: (context) {
+              return [
+                pw.Header(
+                  level: 0,
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Image(image, width: 100),
+                      pw.Text(
+                        'Sales Report',
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        pw.Text(
-                          'From: ${DateFormat('yyyy-MM-dd').format(fromDate!)}',
-                          style: const pw.TextStyle(fontSize: 12),
-                        ),
-                        pw.Text(
-                          'To: ${DateFormat('yyyy-MM-dd').format(toDate!)}',
-                          style: const pw.TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ],
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            'From: ${DateFormat('yyyy-MM-dd').format(fromDate!)}',
+                            style: const pw.TextStyle(fontSize: 12),
+                          ),
+                          pw.Text(
+                            'To: ${DateFormat('yyyy-MM-dd').format(toDate!)}',
+                            style: const pw.TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              pw.SizedBox(height: 20),
-              _buildPDFTable(),
-              pw.Footer(
-                leading: pw.Text(
-                  'Generated on: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
-                  style: const pw.TextStyle(fontSize: 10),
+                pw.SizedBox(height: 20),
+                _buildPDFTable(),
+                pw.Footer(
+                  leading: pw.Text(
+                    'Generated on: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                  trailing: pw.Text(
+                    'SKYNET PRO Powered By Ceylon Innovations',
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
                 ),
-                trailing: pw.Text(
-                  'SKYNET PRO Powered By Ceylon Innovations',
-                  style: const pw.TextStyle(fontSize: 10),
-                ),
-              ),
-            ];
-          },
-        ),
-      );
+              ];
+            },
+          ),
+        );
 
-      await Printing.layoutPdf(
-        onLayout: (format) => pdf.save(),
-        name: 'sales_report_${DateFormat('yyyy_MM_dd').format(DateTime.now())}.pdf',
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating PDF: $e')),
-      );
-    } finally {
-      setState(() => isLoading = false);
-    }
+        return pdf.save();
+      },
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error generating PDF: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    setState(() => isLoading = false);
   }
+}
 
   pw.Widget _buildPDFTable() {
     return pw.TableHelper.fromTextArray(
@@ -740,8 +860,11 @@ class SalesReportPageState extends State<SalesReportPage> {
       cellHeight: 25,
       cellAlignments: Map.fromIterables(
         List<int>.generate(22, (index) => index),
-        List<pw.Alignment>.generate(22,
-                (index) => index == 0 ? pw.Alignment.centerLeft : pw.Alignment.centerRight),
+        List<pw.Alignment>.generate(
+            22,
+            (index) => index == 0
+                ? pw.Alignment.centerLeft
+                : pw.Alignment.centerRight),
       ),
     );
   }
@@ -774,30 +897,32 @@ class SalesReportPageState extends State<SalesReportPage> {
   }
 
   List<List<String>> _getPDFData() {
-    final List<List<String>> data = reportData.map((item) => [
-      item.locationName,
-      NumberFormat('#,##0.00').format(item.totalIncomeLKR),
-      NumberFormat('#,##0.00').format(item.cashIncomeLKR),
-      NumberFormat('#,##0.00').format(item.cardIncomeLKR),
-      NumberFormat('#,##0.00').format(item.lkr),
-      NumberFormat('#,##0.00').format(item.usd),
-      NumberFormat('#,##0.00').format(item.aed),
-      NumberFormat('#,##0.00').format(item.gbp),
-      NumberFormat('#,##0.00').format(item.eur),
-      NumberFormat('#,##0.00').format(item.jpy),
-      NumberFormat('#,##0.00').format(item.aud),
-      NumberFormat('#,##0.00').format(item.cad),
-      NumberFormat('#,##0.00').format(item.chf),
-      NumberFormat('#,##0.00').format(item.cny),
-      NumberFormat('#,##0.00').format(item.hkd),
-      NumberFormat('#,##0.00').format(item.nzd),
-      NumberFormat('#,##0.00').format(item.sgd),
-      NumberFormat('#,##0.00').format(item.visaLKR),
-      NumberFormat('#,##0.00').format(item.masterLKR),
-      NumberFormat('#,##0.00').format(item.unionPayLKR),
-      NumberFormat('#,##0.00').format(item.amexLKR),
-      NumberFormat('#,##0.00').format(item.weChatLKR),
-    ]).toList();
+    final List<List<String>> data = reportData
+        .map((item) => [
+              item.locationName,
+              NumberFormat('#,##0.00').format(item.totalIncomeLKR),
+              NumberFormat('#,##0.00').format(item.cashIncomeLKR),
+              NumberFormat('#,##0.00').format(item.cardIncomeLKR),
+              NumberFormat('#,##0.00').format(item.lkr),
+              NumberFormat('#,##0.00').format(item.usd),
+              NumberFormat('#,##0.00').format(item.aed),
+              NumberFormat('#,##0.00').format(item.gbp),
+              NumberFormat('#,##0.00').format(item.eur),
+              NumberFormat('#,##0.00').format(item.jpy),
+              NumberFormat('#,##0.00').format(item.aud),
+              NumberFormat('#,##0.00').format(item.cad),
+              NumberFormat('#,##0.00').format(item.chf),
+              NumberFormat('#,##0.00').format(item.cny),
+              NumberFormat('#,##0.00').format(item.hkd),
+              NumberFormat('#,##0.00').format(item.nzd),
+              NumberFormat('#,##0.00').format(item.sgd),
+              NumberFormat('#,##0.00').format(item.visaLKR),
+              NumberFormat('#,##0.00').format(item.masterLKR),
+              NumberFormat('#,##0.00').format(item.unionPayLKR),
+              NumberFormat('#,##0.00').format(item.amexLKR),
+              NumberFormat('#,##0.00').format(item.weChatLKR),
+            ])
+        .toList();
 
     // Add totals row
     data.add(_calculateTotalsRow());
@@ -887,7 +1012,8 @@ class SalesReportPageState extends State<SalesReportPage> {
               onTap: () {
                 showDialog(
                   context: context,
-                  builder: (context) => LocationDetailsChart(locationData: item),
+                  builder: (context) =>
+                      LocationDetailsChart(locationData: item),
                 );
               },
               child: Row(
@@ -900,13 +1026,15 @@ class SalesReportPageState extends State<SalesReportPage> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(Icons.bar_chart, size: 16, color: Color(0xFF2A2359)),
+                  const Icon(Icons.bar_chart,
+                      size: 16, color: Color(0xFF2A2359)),
                 ],
               ),
             ),
           ),
           // All other cells are center-aligned with fixed width
-          ...[ // Using spread operator for the remaining cells
+          ...[
+            // Using spread operator for the remaining cells
             item.totalIncomeLKR,
             item.cashIncomeLKR,
             item.cardIncomeLKR,
@@ -929,24 +1057,25 @@ class SalesReportPageState extends State<SalesReportPage> {
             item.amexLKR,
             item.weChatLKR,
           ].map((value) => DataCell(
-            InkWell(
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => LocationDetailsChart(locationData: item),
-                );
-              },
-              child: Container(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  NumberFormat('#,##0.00').format(value),
-                  style: const TextStyle(
-                    color: Colors.black87,
+                InkWell(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) =>
+                          LocationDetailsChart(locationData: item),
+                    );
+                  },
+                  child: Container(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      NumberFormat('#,##0.00').format(value),
+                      style: const TextStyle(
+                        color: Colors.black87,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          )),
+              )),
         ],
       );
     }).toList();
@@ -957,18 +1086,20 @@ class SalesReportPageState extends State<SalesReportPage> {
         cells: _calculateTotalsRow()
             .asMap()
             .map((index, value) => MapEntry(
-          index,
-          DataCell(
-            Container(
-              width: index == 0 ? null : 130,
-              alignment: index == 0 ? Alignment.centerLeft : Alignment.centerRight,
-              child: Text(
-                value,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ))
+                  index,
+                  DataCell(
+                    Container(
+                      width: index == 0 ? null : 130,
+                      alignment: index == 0
+                          ? Alignment.centerLeft
+                          : Alignment.centerRight,
+                      child: Text(
+                        value,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ))
             .values
             .toList(),
       ));
@@ -994,7 +1125,8 @@ class SalesReportPageState extends State<SalesReportPage> {
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                     onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                    icon: const Icon(Icons.arrow_back,
+                        color: Colors.white, size: 24),
                     label: const Text(
                       'Back',
                       style: TextStyle(color: Colors.white, fontSize: 20),
@@ -1032,14 +1164,16 @@ class SalesReportPageState extends State<SalesReportPage> {
                             children: [
                               Text(
                                 'From Date',
-                                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                                style: GoogleFonts.poppins(
+                                    color: Colors.grey[600]),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 fromDate != null
                                     ? DateFormat('yyyy-MM-dd').format(fromDate!)
                                     : 'Select Date',
-                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -1059,14 +1193,16 @@ class SalesReportPageState extends State<SalesReportPage> {
                             children: [
                               Text(
                                 'To Date',
-                                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                                style: GoogleFonts.poppins(
+                                    color: Colors.grey[600]),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 toDate != null
                                     ? DateFormat('yyyy-MM-dd').format(toDate!)
                                     : 'Select Date',
-                                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -1089,13 +1225,13 @@ class SalesReportPageState extends State<SalesReportPage> {
                 child: isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  'Generate Report',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                        'Generate Report',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
               if (showReport) ...[
                 const SizedBox(height: 24),
@@ -1120,7 +1256,6 @@ class SalesReportPageState extends State<SalesReportPage> {
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
-                  height: 400, // Adjust height as needed
                   child: SalesBarChart(salesData: reportData),
                 ),
                 const SizedBox(height: 24),

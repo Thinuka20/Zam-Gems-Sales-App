@@ -457,7 +457,7 @@ class POSDashboard extends StatelessWidget {
             Text(
               title,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 12,
                 color: Colors.grey.shade600,
               ),
             ),
@@ -465,12 +465,12 @@ class POSDashboard extends StatelessWidget {
             Text(
               CurrencyFormatter.format(value),
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0), // Ensure value is between 0 and 1
               backgroundColor: color.withOpacity(0.1),
