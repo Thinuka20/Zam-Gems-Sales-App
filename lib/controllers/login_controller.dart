@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
+import '../pages/login.dart';
+
 class LoginController extends GetxController {
   final loginData = RxMap<String, dynamic>();
 
@@ -22,6 +24,24 @@ class LoginController extends GetxController {
         print('Error setting login data: $e');
       }
       loginData.value = {};
+    }
+  }
+
+  Future<void> clearLoginData() async {
+    try {
+      // Clear the RxMap
+      loginData.value = {};
+
+      if (kDebugMode) {
+        print('Login data cleared successfully');
+      }
+
+      // Navigate to login page
+      Get.to(() => LoginPage());
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error clearing login data: $e');
+      }
     }
   }
 

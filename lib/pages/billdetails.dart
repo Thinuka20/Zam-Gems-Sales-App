@@ -14,6 +14,8 @@ import '../controllers/login_controller.dart';
 class Billdetails extends StatefulWidget {
   const Billdetails({super.key});
 
+
+
   @override
   State<Billdetails> createState() => _BilldetailsState();
 }
@@ -24,6 +26,11 @@ class _BilldetailsState extends State<Billdetails> {
   bool isLoading = false;
   List<SalesSummary> reportData = [];
   bool showReport = false;
+
+  void _handleLogout() async {
+    final loginController = Get.find<LoginController>();
+    await loginController.clearLoginData();
+  }
 
   Future<void> _onRefresh() async {
     if (fromDate != null && toDate != null) {
@@ -119,6 +126,19 @@ class _BilldetailsState extends State<Billdetails> {
           backgroundColor: Theme.of(context).primaryColor,
           automaticallyImplyLeading: false,
           toolbarHeight: 120,
+          actions: [
+            // Add logout button
+            IconButton(
+              icon: const Icon(
+                Icons.power_settings_new,
+                color: Colors.white,
+                size: 28,
+              ),
+              onPressed: _handleLogout,
+              tooltip: 'Logout', // Add tooltip for better UX
+            ),
+            const SizedBox(width: 16),
+          ],
           flexibleSpace: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

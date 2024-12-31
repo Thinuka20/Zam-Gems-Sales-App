@@ -207,6 +207,11 @@ class POSDashboard extends StatelessWidget {
 
   final DashboardController controller = Get.put(DashboardController());
 
+  void _handleLogout() async {
+    final loginController = Get.find<LoginController>();
+    await loginController.clearLoginData();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -215,6 +220,19 @@ class POSDashboard extends StatelessWidget {
           backgroundColor: Theme.of(context).primaryColor,
           automaticallyImplyLeading: false,
           toolbarHeight: 120,
+          actions: [
+            // Add logout button
+            IconButton(
+              icon: const Icon(
+                Icons.power_settings_new,
+                color: Colors.white,
+                size: 28,
+              ),
+              onPressed: _handleLogout,
+              tooltip: 'Logout', // Add tooltip for better UX
+            ),
+            const SizedBox(width: 16),
+          ],
           flexibleSpace: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
