@@ -48,35 +48,32 @@ class DatabaseLocation {
 }
 
 class SoldItem {
-  final String itemId;
+  final int itemId;
   final String itemName;
-  final double quantity;
+  final double soldQuantity;
   final double price;
-  final double total;
+  final double totalSales;
+  final double lineTotal;
 
   SoldItem({
     required this.itemId,
     required this.itemName,
-    required this.quantity,
+    required this.soldQuantity,
     required this.price,
-    required this.total,
+    required this.totalSales,
+    required this.lineTotal,
   });
-}
 
-class SalesReportData {
-  final List<SoldItem> items;
-  final double totalAmount;
-  final DateTime fromDate;
-  final DateTime toDate;
-  final String locationName;
-
-  SalesReportData({
-    required this.items,
-    required this.totalAmount,
-    required this.fromDate,
-    required this.toDate,
-    required this.locationName,
-  });
+  factory SoldItem.fromJson(Map<String, dynamic> json) {
+    return SoldItem(
+      itemId: json['itemId'] as int,
+      itemName: json['itemName'] as String,
+      soldQuantity: (json['soldQuantity'] as num).toDouble(),
+      price: (json['price'] as num).toDouble(),
+      totalSales: (json['totalSales'] as num).toDouble(),
+      lineTotal: (json['lineTotal'] as num).toDouble(),
+    );
+  }
 }
 
 class SoldItemsReport extends StatefulWidget {
@@ -116,78 +113,64 @@ class ApiService {
       throw Exception('Failed to load locations: $e');
     }
   }
+
+  Future<List<SoldItem>> getSoldItems({
+    required DateTime startDate,
+    required DateTime endDate,
+    required DatabaseLocation location,
+  }) async {
+    try {
+      final queryParameters = {
+        'startDate': startDate.toIso8601String(),
+        'endDate': endDate.toIso8601String(),
+        'connectionString': location.dPath,
+      };
+
+      final uri = Uri.parse('$baseUrl/itemsalesreport')
+          .replace(queryParameters: queryParameters);
+
+      print('Request URL: $uri'); // Print the request URL
+      print('Request Parameters: $queryParameters'); // Print the parameters
+
+      final response = await http.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      print('Response Status Code: ${response.statusCode}'); // Print status code
+      print('Response Headers: ${response.headers}'); // Print headers
+      print('Response Body: ${response.body}'); // Print response body
+
+      if (response.statusCode == 200) {
+        final List<dynamic> itemsJson = json.decode(response.body);
+        print('Parsed JSON: $itemsJson'); // Print parsed JSON
+
+        final items = itemsJson.map((json) => SoldItem.fromJson(json)).toList();
+        print('Converted Items Length: ${items.length}'); // Print number of items
+
+        return items;
+      } else {
+        print('Error Response: ${response.body}'); // Print error response
+        throw Exception('Failed to load sold items: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Exception Details: $e'); // Print exception details
+      throw Exception('Failed to load sold items: $e');
+    }
+  }
 }
 
 class _SoldItemsReportState extends State<SoldItemsReport> {
-  late SalesReportData salesData;
-
-  Widget _buildSummaryRow(String label, double value, {bool isTotal = false}) {
-    final formatter = NumberFormat("#,##0.00", "en_US");
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontWeight: isTotal ? FontWeight.w600 : FontWeight.normal,
-              fontSize: isTotal ? 16 : 14,
-            ),
-          ),
-          Text(
-            '${formatter.format(value)} $currency',
-            style: GoogleFonts.poppins(
-              fontWeight: isTotal ? FontWeight.w600 : FontWeight.normal,
-              fontSize: isTotal ? 16 : 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
   bool showReport = false;
-
-  SalesReportData _getSampleData() {
-    return SalesReportData(
-      items: [
-        SoldItem(
-          itemId: '1',
-          itemName: 'Bag 1 - 1000',
-          quantity: 50.000,
-          price: 20.00,
-          total: 1000.00,
-        ),
-        SoldItem(
-          itemId: '7',
-          itemName: 'Lunch pack budget',
-          quantity: 18.000,
-          price: 360.00,
-          total: 6480.00,
-        ),
-        SoldItem(
-          itemId: '14',
-          itemName: 'Potion Chicken (K)',
-          quantity: 1.000,
-          price: 350.00,
-          total: 350.00,
-        ),
-        // Add more sample items here
-      ],
-      totalAmount: 543473.80,
-      fromDate: DateTime(2024, 12, 30),
-      toDate: DateTime(2024, 12, 31),
-      locationName: 'Green Hut-Kollupitiya',
-    );
-  }
-
+  List<SoldItem> reportItems = [];  // List to store items
+  double totalAmount = 0.0;  // Total amount variable
+  late final ApiService _apiService;
   List<DatabaseLocation> _locations = [];
   DatabaseLocation? _selectedLocation;
   bool _isLoadingLocations = true;
-  late final ApiService _apiService;
 
   Future<void> _loadLocations() async {
     try {
@@ -213,6 +196,70 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
     super.initState();
     _apiService = ApiService();
     _loadLocations();
+  }
+
+
+  Future<void> _generateReport() async {
+    if (fromDate == null || toDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select both dates')),
+      );
+      return;
+    }
+
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a location')),
+      );
+      return;
+    }
+
+    if (fromDate!.isAfter(toDate!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('From date must be before To date')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      showReport = false;
+    });
+
+    try {
+      print('Calling API with dates: ${fromDate!.toIso8601String()} to ${toDate!.toIso8601String()}');
+      print('Selected location: ${_selectedLocation!.locationName}');
+
+      // Updated API call with named parameters
+      final items = await _apiService.getSoldItems(
+          startDate: fromDate!,
+          endDate: toDate!,
+          location: _selectedLocation!
+      );
+
+      print('Received ${items.length} items from API');
+
+      // Calculate total amount safely
+      double total = 0.0;
+      for (var item in items) {
+        total += item.lineTotal;
+      }
+
+      setState(() {
+        reportItems = items;
+        totalAmount = total;
+        showReport = true;
+      });
+    } catch (e) {
+      print('Error generating report: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Widget _buildLocationDropdown() {
@@ -314,49 +361,6 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
     }
   }
 
-  Future<void> _generateReport() async {
-    if (fromDate == null || toDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select both dates')),
-      );
-      return;
-    }
-
-    if (_selectedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a location')),
-      );
-      return;
-    }
-
-    if (fromDate!.isAfter(toDate!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('From date must be before To date')),
-      );
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-      showReport = false;
-    });
-
-    try {
-      // Add your report generation logic here using _selectedLocation
-      setState(() {
-        showReport = true;
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
   Widget _buildReportTable(List<SoldItem> items) {
     return Container(
       decoration: BoxDecoration(
@@ -375,11 +379,11 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           ],
           rows: items.map((item) {
             return DataRow(cells: [
-              DataCell(Text(item.itemId)),
+              DataCell(Text(item.itemId.toString())),
               DataCell(Text(item.itemName)),
-              DataCell(Text(item.quantity.toStringAsFixed(3))),
+              DataCell(Text(item.soldQuantity.toStringAsFixed(3))),
               DataCell(Text(item.price.toStringAsFixed(2))),
-              DataCell(Text(item.total.toStringAsFixed(2))),
+              DataCell(Text(item.lineTotal.toStringAsFixed(2))),
             ]);
           }).toList(),
         ),
@@ -388,7 +392,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
   }
 
   Widget _buildReportView() {
-    final data = _getSampleData();
+    // if (reportItems.isEmpty) return const SizedBox.shrink();
     final formatter = NumberFormat("#,##0.00", "en_US");
 
     return Container(
@@ -401,14 +405,14 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
               children: [
                 const SizedBox(height: 16),
                 Text(
-                  'Sold Item Report - ${data.locationName}',
+                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sold Report',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  'From ${DateFormat('MM/dd/yyyy').format(data.fromDate)} To ${DateFormat('MM/dd/yyyy').format(data.toDate)}',
+                  'From ${DateFormat('MM/dd/yyyy').format(fromDate!)} To ${DateFormat('MM/dd/yyyy').format(toDate!)}',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                   ),
@@ -417,13 +421,13 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
               ],
             ),
           ),
-          _buildReportTable(data.items),
+          _buildReportTable(reportItems),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
-                'Total Amount: ${formatter.format(data.totalAmount)} $currency',
+                'Total Amount($currency): ${formatter.format(reportItems[0].totalSales)}',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -437,145 +441,161 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
   }
 
   Future<void> _generatePdf() async {
-    if (!showReport || _selectedLocation == null) {
+    if (!showReport || reportItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please generate the report first')),
+        const SnackBar(content: Text('No data available to generate PDF')),
       );
       return;
     }
 
     try {
       setState(() => isLoading = true);
-      final data = _getSampleData();
       final pdf = pw.Document();
       final font = await PdfGoogleFonts.poppinsRegular();
       final boldFont = await PdfGoogleFonts.poppinsBold();
       final imageBytes = await rootBundle.load('assets/images/skynet_pro.jpg');
       final image = pw.MemoryImage(imageBytes.buffer.asUint8List());
 
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Container(
-              padding: const pw.EdgeInsets.all(20),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Center(
-                    child: pw.Column(
-                      children: [
-                        pw.Container(
-                          child: pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.start,
-                            children: [
-                              pw.Image(image, width: 120),
-                            ],
-                          ),
-                        ),
-                        pw.SizedBox(height: 10),
-                        pw.Text(
+      // Split items into chunks for pagination
+      const int itemsPerPage = 50; // Adjust this number based on your needs
+      final chunks = <List<SoldItem>>[];
+      for (var i = 0; i < reportItems.length; i += itemsPerPage) {
+        chunks.add(
+          reportItems.skip(i).take(itemsPerPage).toList(),
+        );
+      }
+
+      // Create pages
+      for (var i = 0; i < chunks.length; i++) {
+        pdf.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4.copyWith(
+              marginLeft: 10.0, // Reduced left margin
+              marginRight: 10.0, // Reduced right margin
+              marginTop: 10.0, // Reduced top margin
+              marginBottom: 10.0, // Reduced bottom margin
+            ),
+            build: (pw.Context context) {
+              return pw.Container(
+                padding: const pw.EdgeInsets.all(20),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    if (i == 0) ...[
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.start,
+                        children: [
+                          pw.Image(image, width: 100),
+                        ],
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Center(
+                        child: pw.Text(
                           '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sale Report',
-                          style: pw.TextStyle(
-                            font: boldFont,
-                            fontSize: 16,
+                          style: pw.TextStyle(font: boldFont, fontSize: 14),
+                        ),
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            'From: ${DateFormat('MM/dd/yyyy').format(fromDate!)}',
+                            style: pw.TextStyle(font: font, fontSize: 10),
                           ),
-                        ),
-                        pw.SizedBox(height: 10),
-                        pw.Container(
-                          child: pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text(
-                                'From: ${DateFormat('MM/dd/yyyy').format(fromDate!)}',
-                                style: pw.TextStyle(font: font, fontSize: 12),
-                              ),
-                              pw.Text(
-                                'To: ${DateFormat('MM/dd/yyyy').format(toDate!)}',
-                                style: pw.TextStyle(font: font, fontSize: 12),
-                              ),
-                            ],
+                          pw.Text(
+                            'To: ${DateFormat('MM/dd/yyyy').format(toDate!)}',
+                            style: pw.TextStyle(font: font, fontSize: 10),
                           ),
-                        ),
-                        pw.SizedBox(height: 7),
-                      ],
+                        ],
+                      ),
+                      pw.SizedBox(height: 10),
+                    ],
+                    // Table
+                    pw.Expanded(
+                      child: pw.Table.fromTextArray(
+                        headers: ['Item ID', 'Item Name', 'Quantity', 'Price($currency)', 'Total($currency)'],
+                        data: chunks[i].map((item) => [
+                          item.itemId.toString(),
+                          item.itemName,
+                          item.soldQuantity.toStringAsFixed(3),
+                          item.price.toStringAsFixed(2),
+                          item.lineTotal.toStringAsFixed(2),
+                        ]).toList(),
+                        headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),  // Reduced font size
+                        cellStyle: pw.TextStyle(font: font, fontSize: 8),  // Reduced font size
+                        headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
+                        cellHeight: 20,  // Reduced cell height
+                        columnWidths: {
+                          0: const pw.FlexColumnWidth(1),  // Item ID
+                          1: const pw.FlexColumnWidth(3),  // Item Name
+                          2: const pw.FlexColumnWidth(1),  // Quantity
+                          3: const pw.FlexColumnWidth(1),  // Price
+                          4: const pw.FlexColumnWidth(1),  // Total
+                        },
+                        cellAlignments: {
+                          0: pw.Alignment.centerLeft,
+                          1: pw.Alignment.centerLeft,
+                          2: pw.Alignment.centerRight,
+                          3: pw.Alignment.centerRight,
+                          4: pw.Alignment.centerRight,
+                        },
+                      ),
                     ),
-                  ),
-                  // Table
-                  pw.Table.fromTextArray(
-                    headers: ['Item ID', 'Item Name', 'Quantity', 'Price($currency)', 'Total($currency)'],
-                    data: data.items.map((item) => [
-                      item.itemId,
-                      item.itemName,
-                      item.quantity.toStringAsFixed(3),
-                      item.price.toStringAsFixed(2),
-                      item.total.toStringAsFixed(2),
-                    ]).toList(),
-                    headerStyle: pw.TextStyle(
-                      font: boldFont,
-                      fontSize: 12,
-                    ),
-                    cellStyle: pw.TextStyle(
-                      font: font,
-                      fontSize: 10,
-                    ),
-                    headerDecoration: pw.BoxDecoration(
-                      color: PdfColors.grey300,
-                    ),
-                    cellHeight: 25,
-                    cellAlignments: {
-                      0: pw.Alignment.centerLeft,
-                      1: pw.Alignment.centerLeft,
-                      2: pw.Alignment.centerRight,
-                      3: pw.Alignment.centerRight,
-                      4: pw.Alignment.centerRight,
-                    },
-                  ),
-                  pw.SizedBox(height: 10),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        'Total Amount($currency): ${NumberFormat("#,##0.00").format(data.totalAmount)}',
-                        style: pw.TextStyle(
-                          font: boldFont,
-                          fontSize: 12,
-                        ),
+
+                    // Footer - only show on last page
+                    if (i == chunks.length - 1) ...[
+                      pw.SizedBox(height: 10),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.end,
+                        children: [
+                          pw.Text(
+                            'Total Amount($currency): ${NumberFormat("#,##0.00").format(reportItems[0].totalSales)}',
+                            style: pw.TextStyle(font: boldFont, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                      pw.Spacer(),
+                      pw.SizedBox(height: 5),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            'SKYNET Pro Powered By Ceylon Innovation',
+                            style: pw.TextStyle(font: font, fontSize: 8),
+                          ),
+                          pw.Text(
+                            'Report Generated at ${DateFormat('MM/dd/yyyy - h:mm a').format(DateTime.now())}',
+                            style: pw.TextStyle(font: font, fontSize: 8),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                  pw.Spacer(),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'SKYNET Pro Powered By Ceylon Innovation',
-                        style: pw.TextStyle(
-                          font: font,
-                          fontSize: 10,
-                        ),
+
+                    // Page number
+                    pw.Positioned(
+                      bottom: 5,
+                      right: 5,
+                      child: pw.Text(
+                        'Page ${i + 1} of ${chunks.length}',
+                        style: pw.TextStyle(font: font, fontSize: 8),
                       ),
-                      pw.Text(
-                        'Report Generated at ${DateFormat('MM/dd/yyyy - h:mm a').format(DateTime.now())}',
-                        style: pw.TextStyle(
-                          font: font,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      }
 
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdf.save(),
         name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
       );
     } catch (e) {
+      print('PDF Generation Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error generating PDF: $e')),
       );
