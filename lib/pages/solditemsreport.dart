@@ -608,7 +608,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           final anchor = html.AnchorElement()
             ..href = url
             ..style.display = 'none'
-            ..download = 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+            ..download = 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
           html.document.body!.children.add(anchor);
           anchor.click();
           html.document.body!.children.remove(anchor);
@@ -617,7 +617,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           // For desktop web, use Printing package
           await Printing.layoutPdf(
             onLayout: (PdfPageFormat format) async => pdf.save(),
-            name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+            name: 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
           );
         }
       } else {
