@@ -9,7 +9,8 @@ import 'package:printing/printing.dart';
 import '../controllers/login_controller.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdf/widgets.dart' as pw;
-
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 final loginController = Get.find<LoginController>();
 final currency = loginController.currency;
@@ -66,12 +67,12 @@ class SoldItem {
 
   factory SoldItem.fromJson(Map<String, dynamic> json) {
     return SoldItem(
-      itemId: json['itemId'] as int,
-      itemName: json['itemName'] as String,
-      soldQuantity: (json['soldQuantity'] as num).toDouble(),
-      price: (json['price'] as num).toDouble(),
-      totalSales: (json['totalSales'] as num).toDouble(),
-      lineTotal: (json['lineTotal'] as num).toDouble(),
+      itemId: json['itemId'] as int? ?? 0,
+      itemName: json['itemName'] as String? ?? 'Unknown Item',
+      soldQuantity: (json['soldQuantity'] as num?)?.toDouble() ?? 0.0,
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      totalSales: (json['totalSales'] as num?)?.toDouble() ?? 0.0,
+      lineTotal: (json['lineTotal'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -141,16 +142,13 @@ class ApiService {
       print('Response Headers: ${response.headers}'); // Print headers
       print('Response Body: ${response.body}'); // Print response body
 
-      if (response.statusCode == 200) {
-        final List<dynamic> itemsJson = json.decode(response.body);
-        print('Parsed JSON: $itemsJson'); // Print parsed JSON
-
-        final items = itemsJson.map((json) => SoldItem.fromJson(json)).toList();
-        print('Converted Items Length: ${items.length}'); // Print number of items
-
-        return items;
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final List<dynamic> itemsJson = json.decode(response.body) as List<dynamic>? ?? [];
+        return itemsJson
+            .map((json) => SoldItem.fromJson(json as Map<String, dynamic>))
+            .where((item) => item.itemId != 0) // Filter out invalid items
+            .toList();
       } else {
-        print('Error Response: ${response.body}'); // Print error response
         throw Exception('Failed to load sold items: ${response.statusCode}');
       }
     } catch (e) {
@@ -392,7 +390,12 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
   }
 
   Widget _buildReportView() {
-    // if (reportItems.isEmpty) return const SizedBox.shrink();
+
+    if (!showReport || reportItems.isEmpty) {
+      return const Center(
+        child: Text('No data available for the selected period'),
+      );
+    }
     final formatter = NumberFormat("#,##0.00", "en_US");
 
     return Container(
@@ -590,10 +593,40 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
         );
       }
 
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-        name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      );
+      if (kIsWeb) {
+        // Check if running on mobile browser
+        final userAgent = html.window.navigator.userAgent.toLowerCase();
+        final isMobile = userAgent.contains('mobile') ||
+            userAgent.contains('android') ||
+            userAgent.contains('iphone');
+
+        if (isMobile) {
+          // For mobile web, generate and trigger download
+          final bytes = await pdf.save();
+          final blob = html.Blob([bytes], 'application/pdf');
+          final url = html.Url.createObjectUrlFromBlob(blob);
+          final anchor = html.AnchorElement()
+            ..href = url
+            ..style.display = 'none'
+            ..download = 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+          html.document.body!.children.add(anchor);
+          anchor.click();
+          html.document.body!.children.remove(anchor);
+          html.Url.revokeObjectUrl(url);
+        } else {
+          // For desktop web, use Printing package
+          await Printing.layoutPdf(
+            onLayout: (PdfPageFormat format) async => pdf.save(),
+            name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+          );
+        }
+      } else {
+        // For native platforms, use Printing package
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdf.save(),
+          name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+        );
+      }
     } catch (e) {
       print('PDF Generation Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(

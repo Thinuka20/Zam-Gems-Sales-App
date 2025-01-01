@@ -469,11 +469,11 @@ class SalesReportPageState2 extends State<SalesReportPage2> with PwaPdfGenerator
                     context: context,
                     headers: [
                       'Location',
-                      'Total Sales (LKR)',
-                      'Cash (LKR)',
-                      'Card (LKR)',
-                      'Credit (LKR)',
-                      'Advance (LKR)'
+                      'Total Sales ($currency)',
+                      'Cash ($currency)',
+                      'Card ($currency)',
+                      'Credit ($currency)',
+                      'Advance ($currency)'
                     ],
                     data: _generatePDFData(),
                     columnWidths: {
@@ -813,13 +813,13 @@ class SalesReportPageState2 extends State<SalesReportPage2> with PwaPdfGenerator
                 child: DataTable(
                   horizontalMargin: 10, // Removes left spacing
                   columnSpacing: 30,
-                  columns: const [
-                    DataColumn(label: Text('Location')),
-                    DataColumn(label: Text('Total Sales (LKR)')),
-                    DataColumn(label: Text('Cash (LKR)')),
-                    DataColumn(label: Text('Card (LKR)')),
-                    DataColumn(label: Text('Credit (LKR)')),
-                    DataColumn(label: Text('Advance (LKR)')),
+                  columns: [
+                    const DataColumn(label: Text('Location')),
+                    DataColumn(label: Text('Total Sales ($currency)')),
+                    DataColumn(label: Text('Cash ($currency)')),
+                    DataColumn(label: Text('Card ($currency)')),
+                    DataColumn(label: Text('Credit ($currency)')),
+                    DataColumn(label: Text('Advance ($currency)')),
                   ],
                   rows: _generateTableRows(),
                 ),

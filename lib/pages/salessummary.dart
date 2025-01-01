@@ -9,7 +9,8 @@ import 'package:printing/printing.dart';
 import '../controllers/login_controller.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdf/widgets.dart' as pw;
-
+import 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 final loginController = Get.find<LoginController>();
 final currency = loginController.currency;
@@ -110,7 +111,7 @@ class ApiService {
     }
   }
 
-  Future<SalesReportData> getSalesSummaryReport({
+  Future<SalesReportData?> getSalesSummaryReport({
     required DateTime startDate,
     required DateTime endDate,
     required DatabaseLocation location,
@@ -131,11 +132,12 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
       );
 
-      if (response.statusCode == 200) {
-        final reportJson = json.decode(response.body);
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final reportJson = json.decode(response.body) as Map<String, dynamic>? ?? {};
         return SalesReportData.fromJson(reportJson);
       } else {
-        throw Exception('Failed to load sales report: ${response.statusCode}');
+        print('Failed to load sales report: ${response.statusCode}');
+        return null;
       }
     } catch (e) {
       throw Exception('Failed to load sales report: $e');
@@ -331,9 +333,9 @@ class _SaleSummaryReportState extends State<SaleSummaryReport> {
   }
 
   Future<void> _generatePdf() async {
-    if (!showReport || _selectedLocation == null || reportData == null) {
+    if (!showReport || reportData == null || _selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please generate the report first')),
+        const SnackBar(content: Text('No data available to generate PDF')),
       );
       return;
     }
@@ -441,11 +443,40 @@ class _SaleSummaryReportState extends State<SaleSummaryReport> {
         ),
       );
 
-      // Show print preview dialog
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-        name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      );
+      if (kIsWeb) {
+        // Check if running on mobile browser
+        final userAgent = html.window.navigator.userAgent.toLowerCase();
+        final isMobile = userAgent.contains('mobile') ||
+            userAgent.contains('android') ||
+            userAgent.contains('iphone');
+
+        if (isMobile) {
+          // For mobile web, generate and trigger download
+          final bytes = await pdf.save();
+          final blob = html.Blob([bytes], 'application/pdf');
+          final url = html.Url.createObjectUrlFromBlob(blob);
+          final anchor = html.AnchorElement()
+            ..href = url
+            ..style.display = 'none'
+            ..download = 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+          html.document.body!.children.add(anchor);
+          anchor.click();
+          html.document.body!.children.remove(anchor);
+          html.Url.revokeObjectUrl(url);
+        } else {
+          // For desktop web, use Printing package
+          await Printing.layoutPdf(
+            onLayout: (PdfPageFormat format) async => pdf.save(),
+            name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+          );
+        }
+      } else {
+        // For native platforms, use Printing package
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdf.save(),
+          name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+        );
+      }
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -483,7 +514,11 @@ class _SaleSummaryReportState extends State<SaleSummaryReport> {
   }
 
   Widget _buildReportView() {
-    if (reportData == null) return const SizedBox.shrink();
+    if (!showReport || reportData == null || _selectedLocation == null) {
+      return const Center(
+        child: Text('No data available'),
+      );
+    }
     final formatter = NumberFormat("#,##0.00", "en_US");
 
     return Container(

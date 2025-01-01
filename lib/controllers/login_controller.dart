@@ -37,7 +37,8 @@ class LoginController extends GetxController {
       }
 
       // Navigate to login page
-      Get.to(() => LoginPage());
+      Get.offAll(() => LoginPage(), transition: Transition.fade);
+
     } catch (e) {
       if (kDebugMode) {
         print('Error clearing login data: $e');
