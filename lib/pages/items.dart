@@ -77,7 +77,8 @@ class CeylonAdaptor {
     return CeylonAdaptor(
       fieldI1: json['fieldI1'] as int? ?? 0,
       itemid: json['itemid'] as int? ?? 0,
-      date: DateTime.parse(json['date'] as String? ?? DateTime.now().toIso8601String()),
+      date: DateTime.parse(
+          json['date'] as String? ?? DateTime.now().toIso8601String()),
       type: json['type'] as String? ?? '',
       details: json['details'] as String? ?? '',
       credit: (json['credit'] as num?)?.toDouble() ?? 0.0,
@@ -154,7 +155,8 @@ class ApiService {
     }
   }
 
-  Future<List<CeylonAdaptor>> getItemFlow(int itemId, DateTime startDate, DateTime endDate, String ldatasource) async {
+  Future<List<CeylonAdaptor>> getItemFlow(int itemId, DateTime startDate,
+      DateTime endDate, String ldatasource) async {
     try {
       final queryParameters = {
         'itemId': itemId.toString(),
@@ -174,9 +176,11 @@ class ApiService {
       if (response.statusCode == 200) {
         // Decode the response body and handle potential JSON parsing errors
         try {
-          final List<dynamic> flowJson = json.decode(response.body) as List<dynamic>;
+          final List<dynamic> flowJson =
+              json.decode(response.body) as List<dynamic>;
           return flowJson
-              .map((json) => CeylonAdaptor.fromJson(json as Map<String, dynamic>))
+              .map((json) =>
+                  CeylonAdaptor.fromJson(json as Map<String, dynamic>))
               .toList();
         } catch (e) {
           print('Error parsing JSON response: $e');
@@ -399,7 +403,7 @@ class _ItemsState extends State<items> {
     }
 
     try {
-      setState(() => isLoadingPdf  = true);
+      setState(() => isLoadingPdf = true);
 
       final pdf = pw.Document();
       final formatter = NumberFormat("#,##0.000", "en_US");
@@ -411,7 +415,8 @@ class _ItemsState extends State<items> {
       final image = pw.MemoryImage(imageBytes.buffer.asUint8List());
 
       // Get item name from the first record
-      String itemName = itemFlowData!.isNotEmpty ? itemFlowData![0].itemname : '';
+      String itemName =
+          itemFlowData!.isNotEmpty ? itemFlowData![0].itemname : '';
 
       // Split data into chunks for pagination
       const int itemsPerPage = 40;
@@ -473,25 +478,29 @@ class _ItemsState extends State<items> {
                           'Debit',
                           'Flow Balance'
                         ],
-                        data: chunks[i].map((item) => [
-                          DateFormat('MM/dd/yyyy HH:mm').format(item.date),
-                          item.type,
-                          item.details,
-                          formatter.format(item.credit),
-                          formatter.format(item.debit),
-                          formatter.format(item.balance),
-                        ]).toList(),
+                        data: chunks[i]
+                            .map((item) => [
+                                  DateFormat('MM/dd/yyyy HH:mm')
+                                      .format(item.date),
+                                  item.type,
+                                  item.details,
+                                  formatter.format(item.credit),
+                                  formatter.format(item.debit),
+                                  formatter.format(item.balance),
+                                ])
+                            .toList(),
                         headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),
                         cellStyle: pw.TextStyle(font: font, fontSize: 9),
-                        headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
+                        headerDecoration:
+                            pw.BoxDecoration(color: PdfColors.grey300),
                         cellHeight: 25,
                         columnWidths: {
-                          0: const pw.FlexColumnWidth(1.9),  // Date
-                          1: const pw.FlexColumnWidth(2.5),  // Type
-                          2: const pw.FlexColumnWidth(2.1),  // Details
-                          3: const pw.FlexColumnWidth(1),  // Credit
-                          4: const pw.FlexColumnWidth(1),  // Debit
-                          5: const pw.FlexColumnWidth(1.5),  // Balance
+                          0: const pw.FlexColumnWidth(1.9), // Date
+                          1: const pw.FlexColumnWidth(2.5), // Type
+                          2: const pw.FlexColumnWidth(2.1), // Details
+                          3: const pw.FlexColumnWidth(1), // Credit
+                          4: const pw.FlexColumnWidth(1), // Debit
+                          5: const pw.FlexColumnWidth(1.5), // Balance
                         },
                         cellAlignments: {
                           0: pw.Alignment.centerLeft,
@@ -547,7 +556,8 @@ class _ItemsState extends State<items> {
           final anchor = html.AnchorElement()
             ..href = url
             ..style.display = 'none'
-            ..download = 'Items_Flow_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+            ..download =
+                '${itemName}_Items_Flow_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
           html.document.body!.children.add(anchor);
           anchor.click();
           html.document.body!.children.remove(anchor);
@@ -556,14 +566,16 @@ class _ItemsState extends State<items> {
           // For desktop web, use Printing package
           await Printing.layoutPdf(
             onLayout: (PdfPageFormat format) async => pdf.save(),
-            name: 'Items_Flow_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+            name:
+                '${itemName}_Items_Flow_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
           );
         }
       } else {
         // For native platforms, use Printing package
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'Items_Flow_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+          name:
+              '${itemName}_Items_Flow_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
         );
       }
     } catch (e) {
@@ -572,7 +584,7 @@ class _ItemsState extends State<items> {
         SnackBar(content: Text('Error generating PDF: $e')),
       );
     } finally {
-      setState(() => isLoadingPdf  = false);
+      setState(() => isLoadingPdf = false);
     }
   }
 
@@ -597,7 +609,8 @@ class _ItemsState extends State<items> {
         rows: itemFlowData!.map((item) {
           return DataRow(
             cells: [
-              DataCell(Text(DateFormat('MM/dd/yyyy HH:mm').format(item.date))), // Added time
+              DataCell(Text(DateFormat('MM/dd/yyyy HH:mm')
+                  .format(item.date))), // Added time
               DataCell(Text(item.type)),
               DataCell(Text(item.details)),
               DataCell(Text(formatter.format(item.credit))),
@@ -609,6 +622,7 @@ class _ItemsState extends State<items> {
       ),
     );
   }
+
   Widget _buildReportRow(String description, String value,
       {bool isBold = false}) {
     return Container(
@@ -744,13 +758,13 @@ class _ItemsState extends State<items> {
                 ),
               ),
               const SizedBox(height: 16),
-// Replace the buttons section with this:
               Column(
                 children: [
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : _checkAvailableQuantity,
+                      onPressed:
+                          isLoadingQuantity ? null : _checkAvailableQuantity,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -758,21 +772,31 @@ class _ItemsState extends State<items> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(
-                        'Item Available Quantity',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: isLoadingQuantity
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Item Available Quantity',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : _loadItemFlow,
+                      onPressed: isLoadingFlow ? null : _loadItemFlow,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -780,14 +804,24 @@ class _ItemsState extends State<items> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(
-                        'Item Flow',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: isLoadingFlow
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Item Flow',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -819,10 +853,20 @@ class _ItemsState extends State<items> {
               if (showReport && itemFlowData != null) ...[
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: isLoading ? null : _generatePdf,
-                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                  onPressed: isLoadingPdf ? null : _generatePdf,
+                  icon: isLoadingPdf
+                      ? SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.picture_as_pdf, color: Colors.white),
                   label: Text(
-                    'Generate PDF',
+                    isLoadingPdf ? 'Generating...' : 'Generate PDF',
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

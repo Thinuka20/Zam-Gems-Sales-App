@@ -11,6 +11,19 @@ import 'package:fl_chart/fl_chart.dart';
 import 'dart:ui' as ui;
 import '../controllers/login_controller.dart';
 
+
+class SalesSummary {
+  final DateTime date;
+  final int billCount;
+  final double totalAmount;
+
+  SalesSummary({
+    required this.date,
+    required this.billCount,
+    required this.totalAmount,
+  });
+}
+
 class Billdetails extends StatefulWidget {
   const Billdetails({super.key});
 
@@ -760,6 +773,10 @@ class Pie3DPainter extends CustomPainter {
 class DateWiseBarChart extends StatelessWidget {
   final List<DateWiseBillSummary> billSummaries;
 
+  double get maxValue {
+    return billSummaries.map((s) => s.billCount.toDouble()).reduce(math.max);
+  }
+
   const DateWiseBarChart({
     Key? key,
     required this.billSummaries,
@@ -785,129 +802,131 @@ class DateWiseBarChart extends StatelessWidget {
             const SizedBox(height: 20),
             // Increased aspect ratio for taller bars
             AspectRatio(
-              aspectRatio: 4 / 3, // Modified from 4/3 to 16/9 for taller bars
+              aspectRatio: 4 / 3, // Modified aspect ratio for taller bars
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SizedBox(
                   width: math.max(
-                    MediaQuery.of(context).size.width * 1,
-                    billSummaries.length * 65.0, // Increased spacing between bars
+                      MediaQuery.of(context).size.width * 1.5,
+                      billSummaries.length * 65.0
                   ),
-                  child: BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceEvenly,
-                      // Reduced maxY multiplier to make bars taller relative to chart height
-                      maxY: billSummaries
-                          .map((s) => s.billCount)
-                          .reduce(math.max)
-                          .toDouble() * 1.2,
-                      minY: 0,
-                      groupsSpace: 40, // Increased group space
-                      barGroups: billSummaries.asMap().entries.map((entry) {
-                        return BarChartGroupData(
-                          x: entry.key,
-                          barRods: [
-                            BarChartRodData(
-                              toY: entry.value.billCount.toDouble(),
-                              color: Colors.deepPurple,
-                              width: 40, // Adjusted bar width
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(6),
-                                topRight: Radius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 24.0, bottom: 12.0), // Increased padding
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceEvenly,
+                        barGroups: billSummaries.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          DateWiseBillSummary summary = entry.value;
+                          return BarChartGroupData(
+                            x: index,
+                            barRods: [
+                              BarChartRodData(
+                                toY: summary.billCount.toDouble(),
+                                color: const Color(0xFF2A2359),
+                                width: 40,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(6),
+                                  topRight: Radius.circular(6),
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                      gridData: const FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: 2,
-                      ),
-                      borderData: FlBorderData(
-                        show: true,
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey[300]!),
-                          left: BorderSide(color: Colors.grey[300]!),
+                            ],
+                          );
+                        }).toList(),
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: maxValue / 6, // Adjusted interval
                         ),
-                      ),
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 45, // Increased reserved size
-                            getTitlesWidget: (value, meta) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: Text(
-                                  value.toInt().toString(),
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
+                        borderData: FlBorderData(
+                          show: true,
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey[300]!),
+                            left: BorderSide(color: Colors.grey[300]!),
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 50,
+                              interval: maxValue / 5,
+                              getTitlesWidget: (value, meta) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: Text(
+                                    NumberFormat('#,###').format(value.toInt()),
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
                                   ),
+                                );
+                              },
+                            ),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 70, // Increased reserved size
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
+                                if (value >= 0 && value < billSummaries.length) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Transform.rotate(
+                                      angle: -0.5, // Adjusted rotation angle
+                                      child: Text(
+                                        DateFormat('dd MMM yy').format(billSummaries[value.toInt()].saleDate),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const Text('');
+                              },
+                            ),
+                          ),
+                        ),
+                        maxY: maxValue * 1.2, // Adjusted multiplier for better bar height
+                        minY: 0,
+                        groupsSpace: 40, // Increased space between groups
+                        barTouchData: BarTouchData(
+                          touchTooltipData: BarTouchTooltipData(
+                            tooltipBgColor: Colors.blueGrey.withOpacity(0.9),
+                            tooltipRoundedRadius: 8,
+                            tooltipPadding: const EdgeInsets.all(12),
+                            fitInsideHorizontally: true,
+                            fitInsideVertically: true,
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              final summary = billSummaries[groupIndex];
+                              return BarTooltipItem(
+                                '${DateFormat('dd MMM yy').format(summary.saleDate)}\n'
+                                    'Bills: ${NumberFormat('#,###').format(rod.toY.toInt())}\n'
+                                    'Total: ${NumberFormat.currency(symbol: '').format(summary.totalAmount)}',
+                                const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               );
                             },
                           ),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 70, // Increased for better text visibility
-                            getTitlesWidget: (value, meta) {
-                              if (value.toInt() < billSummaries.length) {
-                                final date = billSummaries[value.toInt()].saleDate;
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Transform.rotate(
-                                    angle: -0.5,
-                                    child: Text(
-                                      DateFormat('dd MMM yy').format(date),
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                              return const Text('');
-                            },
-                          ),
-                        ),
-                      ),
-                      barTouchData: BarTouchData(
-                        touchTooltipData: BarTouchTooltipData(
-                          tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
-                          tooltipRoundedRadius: 8,
-                          tooltipPadding: const EdgeInsets.all(12), // Increased padding
-                          fitInsideHorizontally: true,
-                          fitInsideVertically: true,
-                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                            return BarTooltipItem(
-                              '${DateFormat('dd MMM yy').format(billSummaries[groupIndex].saleDate)}\n'
-                                  'Bills: ${rod.toY.toInt()}\n'
-                                  'Amount: ${NumberFormat.currency(symbol: '$currency.').format(billSummaries[groupIndex].totalAmount)}',
-                              const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            );
-                          },
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ),          ],
         ),
       ),
     );

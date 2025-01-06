@@ -8,6 +8,11 @@ import '../pages/login.dart';
 class LoginController extends GetxController {
   final loginData = RxMap<String, dynamic>();
 
+  bool get isLoggedIn {
+    // Check if we have the necessary login data
+    return currency != null && datasource != null;
+  }
+
   void setLoginData(dynamic response) {
     try {
       if (response is Map<String, dynamic>) {
