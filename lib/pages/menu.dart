@@ -6,6 +6,7 @@ import 'package:genix_reports/pages/dashboard.dart';
 import 'package:genix_reports/pages/reports.dart';
 import 'package:genix_reports/pages/salesreport.dart';
 import 'package:genix_reports/pages/salesreport2.dart';
+import 'package:genix_reports/pages/salesreport3.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 
@@ -175,6 +176,8 @@ class DashboardPage extends StatelessWidget {
 
                   if(specialType == "GEM"){
                     Get.to(() => const SalesReportPage());
+                  }else if(specialType == "Retail") {
+                    Get.to(() => const SalesReportPage3());
                   }else {
                     Get.to(() => const SalesReportPage2());
                   }
@@ -212,7 +215,7 @@ class DashboardPage extends StatelessWidget {
               ),
               GetBuilder<LoginController>(
                 builder: (controller) {
-                  if (controller.specialType != "GEM") {
+                  if (controller.specialType != "GEM" && controller.specialType != "Retail") {
                     return Column(
                       children: [
                         const SizedBox(height: 10),
