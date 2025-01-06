@@ -3,8 +3,15 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
+import '../pages/login.dart';
+
 class LoginController extends GetxController {
   final loginData = RxMap<String, dynamic>();
+
+  bool get isLoggedIn {
+    // Check if we have the necessary login data
+    return currency != null && datasource != null;
+  }
 
   void setLoginData(dynamic response) {
     try {
@@ -22,6 +29,25 @@ class LoginController extends GetxController {
         print('Error setting login data: $e');
       }
       loginData.value = {};
+    }
+  }
+
+  Future<void> clearLoginData() async {
+    try {
+      // Clear the RxMap
+      loginData.value = {};
+
+      if (kDebugMode) {
+        print('Login data cleared successfully');
+      }
+
+      // Navigate to login page
+      Get.offAll(() => LoginPage(), transition: Transition.fade);
+
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error clearing login data: $e');
+      }
     }
   }
 

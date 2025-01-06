@@ -10,27 +10,28 @@ import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'dart:io';
 import 'package:dio/io.dart';
+import 'dart:html' as html;
+import 'dart:typed_data';  // For Uint8List
+
 import '../controllers/login_controller.dart';
 
 final loginController = Get.find<LoginController>();
+final datasource = loginController.datasource;
 final currency = loginController.currency;
+
 // Model for the report data
 class ConsolidatedReportData {
-  final int id;
   final String businessName;
   final String placeName;
-  final String details;
-  final String totalIncome;
-  final String cash;
-  final String card;
-  final String credit;
-  final String advance;
+  final double totalIncome;
+  final double cash;
+  final double card;
+  final double credit;
+  final double advance;
 
   ConsolidatedReportData({
-    required this.id,
     required this.businessName,
     required this.placeName,
-    required this.details,
     required this.totalIncome,
     required this.cash,
     required this.card,
@@ -40,15 +41,13 @@ class ConsolidatedReportData {
 
   factory ConsolidatedReportData.fromJson(Map<String, dynamic> json) {
     return ConsolidatedReportData(
-      id: json['id'] ?? 0,
       businessName: json['businessName'] ?? '',
       placeName: json['placeName'] ?? '',
-      details: json['details'] ?? '',
-      totalIncome: json['totalIncome']?.toString() ?? '0.00',
-      cash: json['cash']?.toString() ?? '0.00',
-      card: json['card']?.toString() ?? '0.00',
-      credit: json['credit']?.toString() ?? '0.00',
-      advance: json['advance']?.toString() ?? '0.00',
+      totalIncome: (json['totalIncome'] ?? 0).toDouble(),
+      cash: (json['cash'] ?? 0).toDouble(),
+      card: (json['card'] ?? 0).toDouble(),
+      credit: (json['credit'] ?? 0).toDouble(),
+      advance: (json['advance'] ?? 0).toDouble(),
     );
   }
 }
@@ -58,66 +57,58 @@ class SalesReportService {
   final Dio _dio;
   final String baseUrl;
 
-  SalesReportService({String? baseUrl})
-  // : baseUrl = baseUrl ?? 'https://10.0.2.2:7153/api/Reports',
-      : baseUrl = baseUrl ?? 'http://124.43.70.220:7071/Reports',
-        _dio = Dio() {
-    _dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = HttpClient();
-        client.badCertificateCallback = (cert, host, port) => true;
+  SalesReportService()
+      : baseUrl = 'http://124.43.70.220:7072/Reports',
+        _dio = Dio(BaseOptions(
+          baseUrl: 'http://124.43.70.220:7072/Reports',
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        )) {
+    // Only configure IOHttpClientAdapter for non-web platforms
+    if (!kIsWeb) {
+      (_dio.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate =
+          (HttpClient client) {
+        client.badCertificateCallback =
+            (X509Certificate cert, String host, int port) => true;
         return client;
-      },
-    );
+      };
+    }
   }
 
   Future<List<ConsolidatedReportData>> getConsolidatedReport(
-      DateTime startDate, DateTime endDate) async {
+      DateTime startDate, DateTime endDate, String connectionString) async {
     try {
       if (kDebugMode) {
-        print('Connecting to: $baseUrl/report');
-      }
-      String formattedStartDate =
-      DateFormat('yyyy-MM-dd 04:00:00').format(startDate);
-      String formattedEndDate =
-      DateFormat('yyyy-MM-dd 04:00:00').format(endDate);
-
-      if (kDebugMode) {
-        print(
-            'Request parameters: startDate=$formattedStartDate, endDate=$formattedEndDate');
+        print('Fetching consolidated report for dates: $startDate to $endDate');
       }
 
       final response = await _dio.get(
-        '$baseUrl/report',
+        '/report',
         queryParameters: {
-          'startDate': formattedStartDate,
-          'endDate': formattedEndDate,
+          'startDate': startDate.toIso8601String(),
+          'endDate': endDate.toIso8601String(),
+          'connectionString': datasource,
         },
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        ),
       );
 
       if (response.statusCode == 200) {
-        if (kDebugMode) {
-          print('Connection successful - Data received');
-        }
-        if (kDebugMode) {
-          print(response.data);
-        }
         final List<dynamic> data = response.data;
-        return data
-            .map((json) => ConsolidatedReportData.fromJson(json))
-            .toList();
+        return data.map((json) => ConsolidatedReportData.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load report data');
+        throw Exception('Failed to load report data. Status: ${response.statusCode}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Connection error: $e');
+        print('Error in getConsolidatedReport: $e');
+        if (e is DioException) {
+          print('DioError type: ${e.type}');
+          print('DioError message: ${e.message}');
+          print('DioError response: ${e.response}');
+        }
       }
       throw Exception('Error fetching report: $e');
     }
@@ -127,11 +118,64 @@ class SalesReportService {
 class SalesReportPage2 extends StatefulWidget {
   const SalesReportPage2({super.key});
 
+
+
   @override
-  SalesReportPage2State createState() => SalesReportPage2State();
+  SalesReportPageState2 createState() => SalesReportPageState2();
 }
 
-class SalesReportPage2State extends State<SalesReportPage2> {
+mixin PwaPdfGenerator {
+  static bool get isPwa {
+    if (kIsWeb) {
+      // Use matchMedia to detect standalone mode (PWA)
+      return html.window.matchMedia('(display-mode: standalone)').matches ||
+          html.window.navigator.userAgent.toLowerCase().contains('wv'); // WebView detection
+    }
+    return false;
+  }
+
+  static Future<void> generateAndDownloadPdf({
+    required Future<Uint8List> Function() generatePdf,
+    required String filename,
+  }) async {
+    try {
+      final bytes = await generatePdf();
+
+      if (isPwa) {
+        // PWA mode - force download
+        final blob = html.Blob([bytes], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+
+        final anchor = html.AnchorElement()
+          ..href = url
+          ..style.display = 'none'
+          ..download = filename;
+
+        html.document.body?.children.add(anchor);
+
+        // Use Future.delayed to ensure the anchor is added before clicking
+        await Future.delayed(const Duration(milliseconds: 100));
+        anchor.click();
+
+        // Cleanup after a short delay to ensure download starts
+        await Future.delayed(const Duration(milliseconds: 100));
+        html.document.body?.children.remove(anchor);
+        html.Url.revokeObjectUrl(url);
+      } else {
+        // Regular web mode - use printing package
+        await Printing.layoutPdf(
+          onLayout: (format) => Future.value(bytes),
+          name: filename,
+        );
+      }
+    } catch (e) {
+      print('Error generating PDF: $e');
+      rethrow;
+    }
+  }
+}
+
+class SalesReportPageState2 extends State<SalesReportPage2> with PwaPdfGenerator {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
@@ -140,6 +184,11 @@ class SalesReportPage2State extends State<SalesReportPage2> {
   List<ConsolidatedReportData> filteredData = [];
   final searchController = TextEditingController();
   final _salesReportService = SalesReportService();
+
+  void _handleLogout() async {
+    final loginController = Get.find<LoginController>();
+    await loginController.clearLoginData();
+  }
 
   @override
   void initState() {
@@ -160,7 +209,7 @@ class SalesReportPage2State extends State<SalesReportPage2> {
         filteredData = List.from(reportData);
       } else {
         filteredData = reportData.where((data) {
-          return data.details.toLowerCase().contains(query);
+          return data.businessName.toLowerCase().contains(query);
         }).toList();
       }
     });
@@ -226,11 +275,16 @@ class SalesReportPage2State extends State<SalesReportPage2> {
 
     setState(() {
       isLoading = true;
+      showReport = false;
     });
 
     try {
-      final data =
-      await _salesReportService.getConsolidatedReport(fromDate!, toDate!);
+      final data = await _salesReportService.getConsolidatedReport(
+          fromDate!,
+          toDate!,
+          datasource!
+      );
+
       setState(() {
         reportData = data;
         filteredData = data; // Initialize filtered data
@@ -250,10 +304,10 @@ class SalesReportPage2State extends State<SalesReportPage2> {
   }
 
   List<DataRow> _generateTableRows() {
-    final Map<String, List<dynamic>> groupedData = {};
+    final Map<String, List<ConsolidatedReportData>> groupedData = {};
     final List<DataRow> rows = [];
 
-    // Group data by place name instead of business name
+    // Group data by business name
     for (var data in filteredData) {
       if (!groupedData.containsKey(data.businessName)) {
         groupedData[data.businessName] = [];
@@ -268,62 +322,58 @@ class SalesReportPage2State extends State<SalesReportPage2> {
     double grandTotalCredit = 0;
     double grandTotalAdvance = 0;
 
-    // Sort place names alphabetically
-    final sortedPlaceNames = groupedData.keys.toList()..sort();
+    // Sort business names alphabetically
+    final sortedBusinessNames = groupedData.keys.toList()..sort();
 
-    for (var placeName in sortedPlaceNames) {
-      final placeData = groupedData[placeName]!;
+    for (var businessName in sortedBusinessNames) {
+      final businessData = groupedData[businessName]!;
 
-      // Add place name header row
+      // Add business name header row
       rows.add(DataRow(cells: [
-        DataCell(Text(placeName,
+        DataCell(Text(businessName,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
         ...List.generate(5, (index) => const DataCell(Text(''))),
       ]));
 
-      double placeTotalIncome = 0;
-      double placeTotalCash = 0;
-      double placeTotalCard = 0;
-      double placeTotalCredit = 0;
-      double placeTotalAdvance = 0;
+      double businessTotalIncome = 0;
+      double businessTotalCash = 0;
+      double businessTotalCard = 0;
+      double businessTotalCredit = 0;
+      double businessTotalAdvance = 0;
 
-      // Add rows for each business under this place
-      for (var data in placeData) {
-        final detailParts = data.details.split('-');
-        final displayDetail =
-        detailParts.length > 1 ? detailParts[1].trim() : data.details;
-
+      // Add rows for each place under this business
+      for (var data in businessData) {
         rows.add(DataRow(cells: [
-          DataCell(Text(displayDetail)),
-          DataCell(Text(data.totalIncome)),
-          DataCell(Text(data.cash)),
-          DataCell(Text(data.card)),
-          DataCell(Text(data.credit)),
-          DataCell(Text(data.advance)),
+          DataCell(Text(data.placeName)),
+          DataCell(Text(NumberFormat('#,##0.00').format(data.totalIncome))),
+          DataCell(Text(NumberFormat('#,##0.00').format(data.cash))),
+          DataCell(Text(NumberFormat('#,##0.00').format(data.card))),
+          DataCell(Text(NumberFormat('#,##0.00').format(data.credit))),
+          DataCell(Text(NumberFormat('#,##0.00').format(data.advance))),
         ]));
 
-        // Add to place totals
-        placeTotalIncome += double.parse(data.totalIncome.replaceAll(',', ''));
-        placeTotalCash += double.parse(data.cash.replaceAll(',', ''));
-        placeTotalCard += double.parse(data.card.replaceAll(',', ''));
-        placeTotalCredit += double.parse(data.credit.replaceAll(',', ''));
-        placeTotalAdvance += double.parse(data.advance.replaceAll(',', ''));
+        // Add to business totals
+        businessTotalIncome += data.totalIncome;
+        businessTotalCash += data.cash;
+        businessTotalCard += data.card;
+        businessTotalCredit += data.credit;
+        businessTotalAdvance += data.advance;
       }
 
-      // Add place total row
+      // Add business total row
       rows.add(DataRow(
         cells: [
           const DataCell(Text('BUSINESS TOTAL',
               style: TextStyle(fontWeight: FontWeight.bold))),
-          DataCell(Text(NumberFormat('#,##0.00').format(placeTotalIncome),
+          DataCell(Text(NumberFormat('#,##0.00').format(businessTotalIncome),
               style: const TextStyle(fontWeight: FontWeight.bold))),
-          DataCell(Text(NumberFormat('#,##0.00').format(placeTotalCash),
+          DataCell(Text(NumberFormat('#,##0.00').format(businessTotalCash),
               style: const TextStyle(fontWeight: FontWeight.bold))),
-          DataCell(Text(NumberFormat('#,##0.00').format(placeTotalCard),
+          DataCell(Text(NumberFormat('#,##0.00').format(businessTotalCard),
               style: const TextStyle(fontWeight: FontWeight.bold))),
-          DataCell(Text(NumberFormat('#,##0.00').format(placeTotalCredit),
+          DataCell(Text(NumberFormat('#,##0.00').format(businessTotalCredit),
               style: const TextStyle(fontWeight: FontWeight.bold))),
-          DataCell(Text(NumberFormat('#,##0.00').format(placeTotalAdvance),
+          DataCell(Text(NumberFormat('#,##0.00').format(businessTotalAdvance),
               style: const TextStyle(fontWeight: FontWeight.bold))),
         ],
       ));
@@ -331,19 +381,16 @@ class SalesReportPage2State extends State<SalesReportPage2> {
       // Add separator row
       rows.add(DataRow(
         cells: List.generate(6, (index) => const DataCell(
-            SizedBox(
-                height: 10, // Adjust this value to control the row height
-                child: Text('')
-            )
+            SizedBox(height: 10, child: Text(''))
         )),
       ));
 
       // Add to grand totals
-      grandTotalIncome += placeTotalIncome;
-      grandTotalCash += placeTotalCash;
-      grandTotalCard += placeTotalCard;
-      grandTotalCredit += placeTotalCredit;
-      grandTotalAdvance += placeTotalAdvance;
+      grandTotalIncome += businessTotalIncome;
+      grandTotalCash += businessTotalCash;
+      grandTotalCard += businessTotalCard;
+      grandTotalCredit += businessTotalCredit;
+      grandTotalAdvance += businessTotalAdvance;
     }
 
     // Add grand total row
@@ -372,149 +419,114 @@ class SalesReportPage2State extends State<SalesReportPage2> {
   Future<void> _generatePDF() async {
     setState(() => isLoading = true);
     try {
-      final pdf = pw.Document();
-      final imageBytes = await rootBundle.load('assets/images/skynet_pro.jpg');
-      final image = pw.MemoryImage(
-        imageBytes.buffer.asUint8List(),
-      );
+      final filename = 'sales_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
 
-      // Add page
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4.landscape,
-          margin: const pw.EdgeInsets.symmetric(vertical: 50, horizontal: 60), // Adjust margin here
-          build: (pw.Context context) {
-            return [
-              // Header
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+      await PwaPdfGenerator.generateAndDownloadPdf(
+        filename: filename,
+        generatePdf: () async {
+          final pdf = pw.Document();
+          final imageBytes = await rootBundle.load('assets/images/skynet_pro.jpg');
+          final image = pw.MemoryImage(imageBytes.buffer.asUint8List());
+
+          pdf.addPage(
+            pw.MultiPage(
+              pageFormat: PdfPageFormat.a4.landscape,
+              margin: const pw.EdgeInsets.symmetric(vertical: 50, horizontal: 60),
+              build: (context) {
+                return [
+                  // Header
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Image(
-                        image,
-                        width: 150, // Set your desired width
-                        fit: pw.BoxFit.contain,
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Image(
+                            image,
+                            width: 150,
+                            fit: pw.BoxFit.contain,
+                          ),
+                        ],
+                      ),
+                      pw.Text(
+                        'From : ${DateFormat('yyyy-MM-dd').format(fromDate!)} To : ${DateFormat('yyyy-MM-dd').format(toDate!)}',
+                        style: const pw.TextStyle(fontSize: 10),
                       ),
                     ],
                   ),
+                  pw.SizedBox(height: 10),
                   pw.Text(
-                    'From : ${DateFormat('yyyy-MM-dd').format(fromDate!)} To : ${DateFormat('yyyy-MM-dd').format(toDate!)}',
-                    style: const pw.TextStyle(fontSize: 10),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text(
-                'SKYNET Pro Sales Reports',
-                style: pw.TextStyle(
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 20),
-
-              // Table
-              pw.TableHelper.fromTextArray(
-                context: context,
-                headers: [
-                  'Location',
-                  'Total Sales ($currency)',
-                  'Cash ($currency)',
-                  'Card ($currency)',
-                  'Credit ($currency)',
-                  'Advance ($currency)'
-                ],
-                data: _generatePDFData(),
-                columnWidths: {
-                  0: const pw.FlexColumnWidth(2),
-                  1: const pw.FlexColumnWidth(1.9),
-                  2: const pw.FlexColumnWidth(1.6),
-                  3: const pw.FlexColumnWidth(1.6),
-                  4: const pw.FlexColumnWidth(1.6),
-                  5: const pw.FlexColumnWidth(1.6),
-                },
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headerDecoration: const pw.BoxDecoration(
-                  color: PdfColors.grey300,
-                ),
-                cellHeight: 25,
-                cellAlignments: {
-                  0: pw.Alignment.centerLeft,
-                  1: pw.Alignment.centerRight,
-                  2: pw.Alignment.centerRight,
-                  3: pw.Alignment.centerRight,
-                  4: pw.Alignment.centerRight,
-                  5: pw.Alignment.centerRight,
-                },
-              ),
-
-              // Footer
-              pw.SizedBox(height: 10),
-              pw.Row(
-                mainAxisAlignment: pw
-                    .MainAxisAlignment.spaceBetween, // Changed to spaceBetween
-                children: [
-                  pw.Text(
-                    'SKYNET PRO Powered By Ceylon Innovations',
-                    style: const pw.TextStyle(
-                      fontSize: 10,
-                      color: PdfColors.grey700,
+                    'SKYNET Pro Sales Reports',
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
                     ),
                   ),
-                  pw.Text(
-                    'Generated on: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
-                    style: const pw.TextStyle(
-                      fontSize: 10,
-                      color: PdfColors.grey700,
-                    ),
-                  ),
-                ],
-              ),
-            ];
-          },
-        ),
-      );
+                  pw.SizedBox(height: 20),
 
-      // Show PDF preview dialog
-      await showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.9,
-            height: MediaQuery.of(context).size.height * 0.4,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Table
+                  pw.TableHelper.fromTextArray(
+                    context: context,
+                    headers: [
+                      'Location',
+                      'Total Sales ($currency)',
+                      'Cash ($currency)',
+                      'Card ($currency)',
+                      'Credit ($currency)',
+                      'Advance ($currency)'
+                    ],
+                    data: _generatePDFData(),
+                    columnWidths: {
+                      0: const pw.FlexColumnWidth(2),
+                      1: const pw.FlexColumnWidth(1.9),
+                      2: const pw.FlexColumnWidth(1.6),
+                      3: const pw.FlexColumnWidth(1.6),
+                      4: const pw.FlexColumnWidth(1.6),
+                      5: const pw.FlexColumnWidth(1.6),
+                    },
+                    headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    headerDecoration: const pw.BoxDecoration(
+                      color: PdfColors.grey300,
+                    ),
+                    cellHeight: 25,
+                    cellAlignments: {
+                      0: pw.Alignment.centerLeft,
+                      1: pw.Alignment.centerRight,
+                      2: pw.Alignment.centerRight,
+                      3: pw.Alignment.centerRight,
+                      4: pw.Alignment.centerRight,
+                      5: pw.Alignment.centerRight,
+                    },
+                  ),
+
+                  // Footer
+                  pw.SizedBox(height: 10),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('PDF Preview', style: GoogleFonts.poppins()),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text('Close', style: GoogleFonts.poppins()),
+                      pw.Text(
+                        'SKYNET PRO Powered By Ceylon Innovations',
+                        style: const pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey700,
+                        ),
+                      ),
+                      pw.Text(
+                        'Generated on: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+                        style: const pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey700,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                Expanded(
-                  child: PdfPreview(
-                    build: (format) => pdf.save(),
-                    allowPrinting: true,
-                    allowSharing: true,
-                    maxPageWidth: 800,
-                    canChangeOrientation: false,
-                    canChangePageFormat: false,
-                    pdfFileName:
-                    'sales_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
-                  ),
-                ),
-              ],
+                ];
+              },
             ),
-          ),
-        ),
+          );
+
+          return pdf.save();
+        },
       );
     } catch (e) {
       if (mounted) {
@@ -536,7 +548,7 @@ class SalesReportPage2State extends State<SalesReportPage2> {
     List<List<String>> data = [];
     Map<String, List<ConsolidatedReportData>> groupedData = {};
 
-    // Group data by place name instead of business name
+    // Group data by business name
     for (var item in filteredData) {
       if (!groupedData.containsKey(item.businessName)) {
         groupedData[item.businessName] = [];
@@ -544,23 +556,20 @@ class SalesReportPage2State extends State<SalesReportPage2> {
       groupedData[item.businessName]!.add(item);
     }
 
-    // Track grand totals
     double grandTotalIncome = 0;
     double grandTotalCash = 0;
     double grandTotalCard = 0;
     double grandTotalCredit = 0;
     double grandTotalAdvance = 0;
 
-    // Sort place names alphabetically
-    final sortedPlaceNames = groupedData.keys.toList()..sort();
+    final sortedBusinessNames = groupedData.keys.toList()..sort();
 
-    // Generate rows for each place group
-    for (var placeName in sortedPlaceNames) {
-      final placeData = groupedData[placeName]!;
+    for (var businessName in sortedBusinessNames) {
+      final businessData = groupedData[businessName]!;
 
-      // Add place name header row
+      // Add business name header row
       data.add([
-        placeName, // Place name in first column
+        businessName,
         '',
         '',
         '',
@@ -568,58 +577,50 @@ class SalesReportPage2State extends State<SalesReportPage2> {
         '',
       ]);
 
-      double placeTotalIncome = 0;
-      double placeTotalCash = 0;
-      double placeTotalCard = 0;
-      double placeTotalCredit = 0;
-      double placeTotalAdvance = 0;
+      double businessTotalIncome = 0;
+      double businessTotalCash = 0;
+      double businessTotalCard = 0;
+      double businessTotalCredit = 0;
+      double businessTotalAdvance = 0;
 
-      // Add business data rows for this place
-      for (var item in placeData) {
-        final detailParts = item.details.split('-');
-        final displayDetail =
-        detailParts.length > 1 ? detailParts[1].trim() : item.details;
+      // Add place data rows for this business
+      for (var item in businessData) {
         data.add([
-          displayDetail,
-          NumberFormat('#,##0.00')
-              .format(double.parse(item.totalIncome.replaceAll(',', ''))),
-          NumberFormat('#,##0.00')
-              .format(double.parse(item.cash.replaceAll(',', ''))),
-          NumberFormat('#,##0.00')
-              .format(double.parse(item.card.replaceAll(',', ''))),
-          NumberFormat('#,##0.00')
-              .format(double.parse(item.credit.replaceAll(',', ''))),
-          NumberFormat('#,##0.00')
-              .format(double.parse(item.advance.replaceAll(',', ''))),
+          item.placeName,
+          NumberFormat('#,##0.00').format(item.totalIncome),
+          NumberFormat('#,##0.00').format(item.cash),
+          NumberFormat('#,##0.00').format(item.card),
+          NumberFormat('#,##0.00').format(item.credit),
+          NumberFormat('#,##0.00').format(item.advance),
         ]);
 
-        // Add to place totals
-        placeTotalIncome += double.parse(item.totalIncome.replaceAll(',', ''));
-        placeTotalCash += double.parse(item.cash.replaceAll(',', ''));
-        placeTotalCard += double.parse(item.card.replaceAll(',', ''));
-        placeTotalCredit += double.parse(item.credit.replaceAll(',', ''));
-        placeTotalAdvance += double.parse(item.advance.replaceAll(',', ''));
+        // Add to business totals
+        businessTotalIncome += item.totalIncome;
+        businessTotalCash += item.cash;
+        businessTotalCard += item.card;
+        businessTotalCredit += item.credit;
+        businessTotalAdvance += item.advance;
       }
 
-      // Add place total row
+      // Add business total row
       data.add([
         'BUSINESS TOTAL',
-        NumberFormat('#,##0.00').format(placeTotalIncome),
-        NumberFormat('#,##0.00').format(placeTotalCash),
-        NumberFormat('#,##0.00').format(placeTotalCard),
-        NumberFormat('#,##0.00').format(placeTotalCredit),
-        NumberFormat('#,##0.00').format(placeTotalAdvance),
+        NumberFormat('#,##0.00').format(businessTotalIncome),
+        NumberFormat('#,##0.00').format(businessTotalCash),
+        NumberFormat('#,##0.00').format(businessTotalCard),
+        NumberFormat('#,##0.00').format(businessTotalCredit),
+        NumberFormat('#,##0.00').format(businessTotalAdvance),
       ]);
 
       // Add empty row as separator
       data.add(['', '', '', '', '', '']);
 
       // Add to grand totals
-      grandTotalIncome += placeTotalIncome;
-      grandTotalCash += placeTotalCash;
-      grandTotalCard += placeTotalCard;
-      grandTotalCredit += placeTotalCredit;
-      grandTotalAdvance += placeTotalAdvance;
+      grandTotalIncome += businessTotalIncome;
+      grandTotalCash += businessTotalCash;
+      grandTotalCard += businessTotalCard;
+      grandTotalCredit += businessTotalCredit;
+      grandTotalAdvance += businessTotalAdvance;
     }
 
     // Add grand total row
@@ -636,14 +637,26 @@ class SalesReportPage2State extends State<SalesReportPage2> {
 
     return data;
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).primaryColor,
         automaticallyImplyLeading: false,
-        toolbarHeight: 100,
+        toolbarHeight: 120,
+        actions: [
+          // Add logout button
+          IconButton(
+            icon: const Icon(
+              Icons.power_settings_new,
+              color: Colors.white,
+              size: 28,
+            ),
+            onPressed: _handleLogout,
+            tooltip: 'Logout', // Add tooltip for better UX
+          ),
+          const SizedBox(width: 16),
+        ],
         flexibleSpace: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -664,7 +677,7 @@ class SalesReportPage2State extends State<SalesReportPage2> {
               ),
             ),
             Text(
-              'Location Wise Sales',
+              'Sales Report',
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -787,7 +800,7 @@ class SalesReportPage2State extends State<SalesReportPage2> {
                 controller: searchController,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search),
-                  hintText: 'Search by business name or place',
+                  hintText: 'Search by Location',
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
@@ -801,7 +814,7 @@ class SalesReportPage2State extends State<SalesReportPage2> {
                   horizontalMargin: 10, // Removes left spacing
                   columnSpacing: 30,
                   columns: [
-                    DataColumn(label: Text('Location')),
+                    const DataColumn(label: Text('Location')),
                     DataColumn(label: Text('Total Sales ($currency)')),
                     DataColumn(label: Text('Cash ($currency)')),
                     DataColumn(label: Text('Card ($currency)')),
