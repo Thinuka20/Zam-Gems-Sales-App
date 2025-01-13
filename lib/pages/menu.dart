@@ -215,7 +215,7 @@ class DashboardPage extends StatelessWidget {
               ),
               GetBuilder<LoginController>(
                 builder: (controller) {
-                  if (controller.specialType != "GEM" && controller.specialType != "Retail") {
+                  if (controller.specialType != "Retail") {
                     return Column(
                       children: [
                         const SizedBox(height: 10),
@@ -252,6 +252,18 @@ class DashboardPage extends StatelessWidget {
                             ),
                           ),
                         ),
+                      ],
+                    );
+                  } else {
+                    return const SizedBox.shrink();
+                  }
+                },
+              ),
+              GetBuilder<LoginController>(
+                builder: (controller) {
+                  if (controller.specialType != "GEM") {
+                    return Column(
+                      children: [
                         const SizedBox(height: 10),
                         InkWell(
                           onTap: () {
@@ -274,6 +286,52 @@ class DashboardPage extends StatelessWidget {
                                   const SizedBox(width: 16),
                                   Text(
                                     'Items',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.arrow_forward_ios),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return const SizedBox.shrink();
+                  }
+                },
+              ),
+              GetBuilder<LoginController>(
+                builder: (controller) {
+                  if (controller.specialType == "GEM") {
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        InkWell(
+                          onTap: () {
+                            Get.to(() => const items());
+                          },
+                          child: Card(
+                            color: Colors.white,
+                            child: Container(
+                              height: 80,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.shopping_cart,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Advanced',
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 20,
