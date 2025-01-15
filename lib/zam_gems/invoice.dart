@@ -265,7 +265,7 @@ class _InvoicePdfViewerState extends State<InvoicePdfViewer> {
                           pw.SizedBox(
                             width: 300,
                             child: pw.Text(
-                              '(${payment['currency']} - ${payment['paymentDetails']}) ${payment['totalPayingAmount']}',
+                              '(${payment['currency']} - ${payment['paymentDetails']}) ${NumberFormat('#,##0.00').format(payment['totalPayingAmount'])}',
                             ),
                           ),
                         ],

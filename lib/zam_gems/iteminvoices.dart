@@ -61,6 +61,7 @@ class SalesReport {
   final double totalCreditGiven;
   final double totalAdvance;
   final double totalBank;
+  final String billX;
 
   SalesReport({
     required this.saleId,
@@ -74,6 +75,7 @@ class SalesReport {
     required this.totalCreditGiven,
     required this.totalAdvance,
     required this.totalBank,
+    required this.billX,
   });
 
   factory SalesReport.fromJson(Map<String, dynamic> json) {
@@ -90,6 +92,7 @@ class SalesReport {
       totalCreditGiven: (json['totalCreditGiven'] as num).toDouble(),
       totalAdvance: (json['totalAdvance'] as num).toDouble(),
       totalBank: (json['totalBank'] as num).toDouble(),
+      billX: json['billX'] as String,
     );
   }
 }
@@ -360,7 +363,7 @@ class _SoldItemsZam extends State<SoldItemsZam> {
                       icon: const Icon(Icons.receipt_long, size: 20),
                       onPressed: () {
                         Get.to(
-                              () => InvoicePdfViewer(),
+                          () => InvoicePdfViewer(),
                           arguments: {
                             'saleId': report.saleId,
                             'outletDataSource': _selectedLocation!.dPath,
@@ -371,11 +374,13 @@ class _SoldItemsZam extends State<SoldItemsZam> {
                   ],
                 ),
               ),
-              DataCell(Text(report.saleId.toString())),
+              DataCell(Text(report.billX)),
               DataCell(Text(report.customerName)),
               DataCell(
-                  Text('$currency ${report.totalPaid.toStringAsFixed(2)}')),
-
+                Text(
+                  '$currency ${NumberFormat('#,##0.00').format(report.totalPaid)}',
+                ),
+              ),
             ],
           );
         }).toList(),
@@ -420,17 +425,6 @@ class _SoldItemsZam extends State<SoldItemsZam> {
             ),
           ),
           _buildReportTable(reports),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'Total Amount($currency): ${formatter.format(totalSales)}',
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -510,15 +504,15 @@ class _SoldItemsZam extends State<SoldItemsZam> {
                         ],
                         data: chunks[i]
                             .map((report) => [
-                                  report.saleId.toString(),
+                                  report.billX,
                                   report.customerName,
-                                  '$currency ${report.totalPaid.toStringAsFixed(2)}',
-                                  '$currency ${report.totalCashReceived.toStringAsFixed(2)}',
-                                  '$currency ${report.totalCardPayment.toStringAsFixed(2)}',
-                                  '$currency ${report.totalChequeAmountReceived.toStringAsFixed(2)}',
-                                  '$currency ${report.totalCreditGiven.toStringAsFixed(2)}',
-                                  '$currency ${report.totalAdvance.toStringAsFixed(2)}',
-                                  '$currency ${report.totalBank.toStringAsFixed(2)}'
+                                  '$currency ${NumberFormat('#,##0.00').format(report.totalPaid)}',
+                                  '$currency ${NumberFormat('#,##0.00').format(report.totalCashReceived)}',
+                                  '$currency ${NumberFormat('#,##0.00').format(report.totalCardPayment)}',
+                                  '$currency ${NumberFormat('#,##0.00').format(report.totalChequeAmountReceived)}',
+                                  '$currency ${NumberFormat('#,##0.00').format(report.totalCreditGiven)}',
+                                  '$currency ${NumberFormat('#,##0.00').format(report.totalAdvance)}',
+                                  '$currency ${NumberFormat('#,##0.00').format(report.totalBank)}'
                                 ])
                             .toList(),
                         headerStyle: pw.TextStyle(font: boldFont, fontSize: 8),
