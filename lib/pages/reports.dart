@@ -3,12 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:genix_reports/pages/billdetails.dart';
 import 'package:genix_reports/pages/salessummary.dart';
 import 'package:genix_reports/pages/solditemsreport.dart';
+import 'package:genix_reports/zam_gems/iteminvoices.dart';
+import 'package:genix_reports/zam_gems/solditemsreportZam.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 
 import '../controllers/login_controller.dart';
 
-class ReportsMenu extends StatelessWidget {  // Renamed to ReportsMenu
+class ReportsMenu extends StatelessWidget {
+  // Renamed to ReportsMenu
   const ReportsMenu({Key? key}) : super(key: key);
 
   void _handleLogout() async {
@@ -70,43 +73,113 @@ class ReportsMenu extends StatelessWidget {  // Renamed to ReportsMenu
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              InkWell(
-                onTap: () {
-                  Get.to(() => const SoldItemsReport());  // Navigate to SoldItemsReport
-                },
-                child: Card(
-                  color: Colors.white,
-                  child: Container(
-                    height: 80,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+              GetBuilder<LoginController>(
+                builder: (controller) {
+                  if (controller.specialType == "GEM") {
+                    return Column(
                       children: [
-                        Icon(
-                          Icons.picture_as_pdf_rounded,
-                          color: Theme.of(context).primaryColor,
-                          size: 40,
-                        ),
-                        const SizedBox(width: 16),
-                        Text(
-                          'Sold Items',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 20,
+                        InkWell(
+                          onTap: () {
+                            Get.to(() =>
+                            const SoldItemsReportZam()); // Navigate to SalesReport
+                          },
+                          child: Card(
+                            color: Colors.white,
+                            child: Container(
+                              height: 80,
+                              padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.picture_as_pdf_rounded,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Sold Items',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.arrow_forward_ios),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                        const Spacer(),
-                        const Icon(Icons.arrow_forward_ios),
                       ],
-                    ),
-                  ),
-                ),
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+
+                      ],
+                    );
+                  }
+                },
               ),
-              const SizedBox(height: 10),
+              GetBuilder<LoginController>(
+                builder: (controller) {
+                  if (controller.specialType != "GEM") {
+                    return Column(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            Get.to(() =>
+                            const SoldItemsReport()); // Navigate to SalesReport
+                          },
+                          child: Card(
+                            color: Colors.white,
+                            child: Container(
+                              height: 80,
+                              padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.picture_as_pdf_rounded,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Sold Items',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.arrow_forward_ios),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+                      ],
+                    );
+                  }
+                },
+              ),
               InkWell(
                 onTap: () {
-                  Get.to(() => const SaleSummaryReport());  // Navigate to SalesReport
+                  Get.to(() =>
+                  const SaleSummaryReport()); // Navigate to SoldItemsReport
                 },
                 child: Card(
                   color: Colors.white,
@@ -136,6 +209,59 @@ class ReportsMenu extends StatelessWidget {  // Renamed to ReportsMenu
                     ),
                   ),
                 ),
+              ),
+              const SizedBox(height: 10),
+              GetBuilder<LoginController>(
+                builder: (controller) {
+                  if (controller.specialType == "GEM") {
+                    return Column(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            Get.to(() =>
+                                const SoldItemsZam()); // Navigate to SalesReport
+                          },
+                          child: Card(
+                            color: Colors.white,
+                            child: Container(
+                              height: 80,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.picture_as_pdf_rounded,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Item Invoices',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.arrow_forward_ios),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+
+                      ],
+                    );
+                  }
+                },
               ),
               const SizedBox(height: 25),
             ],

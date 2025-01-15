@@ -55,6 +55,8 @@ class SoldItem {
   final double price;
   final double totalSales;
   final double lineTotal;
+  final String displayId;
+
 
   SoldItem({
     required this.itemId,
@@ -63,6 +65,7 @@ class SoldItem {
     required this.price,
     required this.totalSales,
     required this.lineTotal,
+    required this.displayId,
   });
 
   factory SoldItem.fromJson(Map<String, dynamic> json) {
@@ -73,16 +76,17 @@ class SoldItem {
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       totalSales: (json['totalSales'] as num?)?.toDouble() ?? 0.0,
       lineTotal: (json['lineTotal'] as num?)?.toDouble() ?? 0.0,
+      displayId: json['displayId'] as String? ?? 'Unknown Id',
     );
   }
 }
 
-class SoldItemsReport extends StatefulWidget {
+class SoldItemsReportZam extends StatefulWidget {
   // Renamed to SoldItemsReport
-  const SoldItemsReport({super.key});
+  const SoldItemsReportZam({super.key});
 
   @override
-  State<SoldItemsReport> createState() => _SoldItemsReportState();
+  State<SoldItemsReportZam> createState() => _SoldItemsReportZamState();
 }
 
 class ApiService {
@@ -127,7 +131,7 @@ class ApiService {
         'connectionString': location.dPath,
       };
 
-      final uri = Uri.parse('$baseUrl/itemsalesreport')
+      final uri = Uri.parse('$baseUrl/itemsalesreportZam')
           .replace(queryParameters: queryParameters);
 
       print('Request URL: $uri'); // Print the request URL
@@ -158,7 +162,7 @@ class ApiService {
   }
 }
 
-class _SoldItemsReportState extends State<SoldItemsReport> {
+class _SoldItemsReportZamState extends State<SoldItemsReportZam> {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
@@ -377,7 +381,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           ],
           rows: items.map((item) {
             return DataRow(cells: [
-              DataCell(Text(item.itemId.toString())),
+              DataCell(Text(item.displayId)),
               DataCell(Text(item.itemName)),
               DataCell(Text(item.soldQuantity.toStringAsFixed(3))),
               DataCell(Text(NumberFormat('#,##0.00').format(item.price))),
@@ -518,7 +522,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                       child: pw.Table.fromTextArray(
                         headers: ['Item ID', 'Item Name', 'Quantity', 'Price($currency)', 'Total($currency)'],
                         data: chunks[i].map((item) => [
-                          item.itemId,
+                          item.displayId,
                           item.itemName,
                           item.soldQuantity.toStringAsFixed(3),
                           NumberFormat('#,##0.00').format(item.price),

@@ -50,7 +50,7 @@ class DatabaseLocation {
 
 class CeylonAdaptor {
   final int fieldI1;
-  final int itemid;
+  final String itemid;
   final DateTime date;
   final String type;
   final String details;
@@ -76,7 +76,7 @@ class CeylonAdaptor {
   factory CeylonAdaptor.fromJson(Map<String, dynamic> json) {
     return CeylonAdaptor(
       fieldI1: json['fieldI1'] as int? ?? 0,
-      itemid: json['itemid'] as int? ?? 0,
+      itemid: (json['itemid'] ?? '').toString(),
       date: DateTime.parse(
           json['date'] as String? ?? DateTime.now().toIso8601String()),
       type: json['type'] as String? ?? '',
@@ -90,12 +90,12 @@ class CeylonAdaptor {
   }
 }
 
-class items extends StatefulWidget {
+class itemsZam extends StatefulWidget {
   // Renamed to SoldItemsReport
-  const items({super.key});
+  const itemsZam({super.key});
 
   @override
-  State<items> createState() => _ItemsState();
+  State<itemsZam> createState() => _itemsZamState();
 }
 
 class ApiService {
@@ -128,14 +128,14 @@ class ApiService {
     }
   }
 
-  Future<double> getAvailableStock(int itemId, String ldatasource) async {
+  Future<double> getAvailableStock(String itemId, String ldatasource) async {
     try {
       final queryParameters = {
-        'itemId': itemId.toString(),
+        'itemId': itemId,
         'connectionString': ldatasource,
       };
 
-      final uri = Uri.parse('$baseUrl/availablestock')
+      final uri = Uri.parse('$baseUrl/availablestockZam')
           .replace(queryParameters: queryParameters);
 
       final response = await http.get(
@@ -155,17 +155,21 @@ class ApiService {
     }
   }
 
-  Future<List<CeylonAdaptor>> getItemFlow(int itemId, DateTime startDate,
-      DateTime endDate, String ldatasource) async {
+  Future<List<CeylonAdaptor>> getItemFlow(
+    String itemId,
+    DateTime startDate,
+    DateTime endDate,
+    String ldatasource,
+  ) async {
     try {
       final queryParameters = {
-        'itemId': itemId.toString(),
+        'itemId': itemId,
         'startDate': startDate.toIso8601String(),
         'endDate': endDate.toIso8601String(),
         'connectionString': ldatasource,
       };
 
-      final uri = Uri.parse('$baseUrl/itemflow')
+      final uri = Uri.parse('$baseUrl/itemflowZam')
           .replace(queryParameters: queryParameters);
 
       final response = await http.get(
@@ -197,7 +201,7 @@ class ApiService {
   }
 }
 
-class _ItemsState extends State<items> {
+class _itemsZamState extends State<itemsZam> {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
@@ -251,7 +255,7 @@ class _ItemsState extends State<items> {
     setState(() => isLoadingQuantity = true);
     try {
       final quantity = await _apiService.getAvailableStock(
-        int.parse(_itemCodeController.text),
+        _itemCodeController.text,
         _selectedLocation!.dPath,
       );
       setState(() {
@@ -289,7 +293,7 @@ class _ItemsState extends State<items> {
       final endDate = DateTime.now().add(const Duration(days: 1));
 
       final data = await _apiService.getItemFlow(
-        int.parse(_itemCodeController.text),
+        _itemCodeController.text,
         startDate,
         endDate,
         _selectedLocation!.dPath,
@@ -301,7 +305,8 @@ class _ItemsState extends State<items> {
       }
       print('Item Flow Data:');
       for (var item in data) {
-        print('${item.fieldI1},${item.itemid},${item.date},${item.type},${item.details},${item.credit},${item.debit},${item.fieldD3},${item.balance},${item.itemname}');
+        print(
+            '${item.fieldI1},${item.itemid},${item.date},${item.type},${item.details},${item.credit},${item.debit},${item.fieldD3},${item.balance},${item.itemname}');
       }
       setState(() {
         itemFlowData = data;
