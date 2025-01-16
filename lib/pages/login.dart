@@ -10,7 +10,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../controllers/login_controller.dart';
-import 'menu.dart';
+import '../Menu/menu.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();

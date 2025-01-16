@@ -16,73 +16,35 @@ final loginController = Get.find<LoginController>();
 final currency = loginController.currency;
 final datasource = loginController.datasource;
 
-class DatabaseLocation {
-  final int id;
-  final String databaseName;
-  final String locationName;
-  final String bLocationName;
-  final String dPath;
-  final String? details1;
-  final String? details2;
-
-  DatabaseLocation({
-    required this.id,
-    required this.databaseName,
-    required this.locationName,
-    required this.bLocationName,
-    required this.dPath,
-    this.details1,
-    this.details2,
-  });
-
-  factory DatabaseLocation.fromJson(Map<String, dynamic> json) {
-    return DatabaseLocation(
-      id: json['id'] as int,
-      databaseName: json['databaseName'] as String,
-      locationName: json['locationName'] as String,
-      bLocationName: json['bLocationName'] as String,
-      dPath: json['dPath'] as String,
-      details1: json['details1'] as String?,
-      details2: json['details2'] as String?,
-    );
-  }
-}
-
-class SoldItem {
+class totalProduction {
   final int itemId;
   final String itemName;
-  final double soldQuantity;
-  final double price;
-  final double totalSales;
-  final double lineTotal;
+  final double totalQuantity;
+  final double averageTotal;
 
-  SoldItem({
+  totalProduction({
     required this.itemId,
     required this.itemName,
-    required this.soldQuantity,
-    required this.price,
-    required this.totalSales,
-    required this.lineTotal,
+    required this.totalQuantity,
+    required this.averageTotal,
   });
 
-  factory SoldItem.fromJson(Map<String, dynamic> json) {
-    return SoldItem(
+  factory totalProduction.fromJson(Map<String, dynamic> json) {
+    return totalProduction(
       itemId: json['itemId'] as int? ?? 0,
       itemName: json['itemName'] as String? ?? 'Unknown Item',
-      soldQuantity: (json['soldQuantity'] as num?)?.toDouble() ?? 0.0,
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      totalSales: (json['totalSales'] as num?)?.toDouble() ?? 0.0,
-      lineTotal: (json['lineTotal'] as num?)?.toDouble() ?? 0.0,
+      totalQuantity: (json['totalQuantity'] as num?)?.toDouble() ?? 0.0,
+      averageTotal: (json['averageTotal'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
 
-class SoldItemsReport extends StatefulWidget {
+class itemwiseProductionReport extends StatefulWidget {
   // Renamed to SoldItemsReport
-  const SoldItemsReport({super.key});
+  const itemwiseProductionReport({super.key});
 
   @override
-  State<SoldItemsReport> createState() => _SoldItemsReportState();
+  State<itemwiseProductionReport> createState() => _itemwiseProductionReportState();
 }
 
 class ApiService {
@@ -90,44 +52,19 @@ class ApiService {
 
   ApiService();
 
-  Future<List<DatabaseLocation>> getLocations() async {
-    try {
-      final queryParameters = {'connectionString': datasource};
-
-      final uri = Uri.parse('$baseUrl/locations')
-          .replace(queryParameters: queryParameters);
-
-      final response = await http.get(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> locationsJson = json.decode(response.body);
-        return locationsJson
-            .map((json) => DatabaseLocation.fromJson(json))
-            .toList();
-      } else {
-        throw Exception('Failed to load locations: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Failed to load locations: $e');
-    }
-  }
-
-  Future<List<SoldItem>> getSoldItems({
+  Future<List<totalProduction>> getSoldItems({
     required DateTime startDate,
     required DateTime endDate,
-    required DatabaseLocation location,
+    required String location,
   }) async {
     try {
       final queryParameters = {
         'startDate': startDate.toIso8601String(),
         'endDate': endDate.toIso8601String(),
-        'connectionString': location.dPath,
+        'connectionString': location,
       };
 
-      final uri = Uri.parse('$baseUrl/itemsalesreport')
+      final uri = Uri.parse('$baseUrl/ingredientwise')
           .replace(queryParameters: queryParameters);
 
       print('Request URL: $uri'); // Print the request URL
@@ -145,8 +82,8 @@ class ApiService {
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         final List<dynamic> itemsJson = json.decode(response.body) as List<dynamic>? ?? [];
         return itemsJson
-            .map((json) => SoldItem.fromJson(json as Map<String, dynamic>))
-            .where((item) => item.itemId != 0) // Filter out invalid items
+            .map((json) => totalProduction.fromJson(json as Map<String, dynamic>))
+            .where((totalProduction) => totalProduction.itemId != 0) // Filter out invalid items
             .toList();
       } else {
         throw Exception('Failed to load sold items: ${response.statusCode}');
@@ -158,42 +95,19 @@ class ApiService {
   }
 }
 
-class _SoldItemsReportState extends State<SoldItemsReport> {
+class _itemwiseProductionReportState extends State<itemwiseProductionReport> {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
   bool showReport = false;
-  List<SoldItem> reportItems = [];  // List to store items
+  List<totalProduction> productionItems = [];  // List to store items
   double totalAmount = 0.0;  // Total amount variable
   late final ApiService _apiService;
-  List<DatabaseLocation> _locations = [];
-  DatabaseLocation? _selectedLocation;
-  bool _isLoadingLocations = true;
-
-  Future<void> _loadLocations() async {
-    try {
-      setState(() => _isLoadingLocations = true);
-      final locations = await _apiService.getLocations();
-      setState(() {
-        _locations = locations;
-        _isLoadingLocations = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingLocations = false);
-      if (mounted) {
-        // Check if widget is still mounted
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading locations: $e')),
-        );
-      }
-    }
-  }
 
   @override
   void initState() {
     super.initState();
     _apiService = ApiService();
-    _loadLocations();
   }
 
 
@@ -201,13 +115,6 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
     if (fromDate == null || toDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select both dates')),
-      );
-      return;
-    }
-
-    if (_selectedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a location')),
       );
       return;
     }
@@ -226,25 +133,24 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
 
     try {
       print('Calling API with dates: ${fromDate!.toIso8601String()} to ${toDate!.toIso8601String()}');
-      print('Selected location: ${_selectedLocation!.locationName}');
 
       // Updated API call with named parameters
       final items = await _apiService.getSoldItems(
           startDate: fromDate!,
           endDate: toDate!,
-          location: _selectedLocation!
+          location: datasource!
       );
 
       print('Received ${items.length} items from API');
 
       // Calculate total amount safely
       double total = 0.0;
-      for (var item in items) {
-        total += item.lineTotal;
+      for (var items in items) {
+        total += items.totalQuantity * items.averageTotal;
       }
 
       setState(() {
-        reportItems = items;
+        productionItems = items;
         totalAmount = total;
         showReport = true;
       });
@@ -258,58 +164,6 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
         isLoading = false;
       });
     }
-  }
-
-  Widget _buildLocationDropdown() {
-    return DropdownButtonFormField<DatabaseLocation>(
-      value: _selectedLocation,
-      dropdownColor: Colors.white,
-      icon: Icon(
-        Icons.arrow_drop_down,
-        color: Theme.of(context).primaryColor,
-      ),
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(context).primaryColor,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Colors.grey[300]!,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(context).primaryColor,
-            width: 2,
-          ),
-        ),
-      ),
-      items: _locations.map((location) {
-        return DropdownMenuItem<DatabaseLocation>(
-          value: location,
-          child: Text(
-            "${location.locationName}-${location.bLocationName}",
-            style: GoogleFonts.poppins(
-              color: const Color(0xFF2A2359),
-            ),
-          ),
-        );
-      }).toList(),
-      onChanged: (DatabaseLocation? newValue) {
-        setState(() {
-          _selectedLocation = newValue;
-        });
-      },
-    );
   }
 
   void _handleLogout() async {
@@ -359,7 +213,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
     }
   }
 
-  Widget _buildReportTable(List<SoldItem> items) {
+  Widget _buildReportTable(List<totalProduction> items) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black),
@@ -369,19 +223,17 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: const [
-            DataColumn(label: Text('Item ID')),
+            DataColumn(label: Text('Item Id')),
             DataColumn(label: Text('Item Name')),
-            DataColumn(label: Text('Quantity')),
-            DataColumn(label: Text('Price')),
-            DataColumn(label: Text('Total')),
+            DataColumn(label: Text('Issue Quantity')),
+            DataColumn(label: Text('Issue Total')),
           ],
           rows: items.map((item) {
             return DataRow(cells: [
               DataCell(Text(item.itemId.toString())),
               DataCell(Text(item.itemName)),
-              DataCell(Text(item.soldQuantity.toStringAsFixed(3))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.price))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.lineTotal))),
+              DataCell(Text(item.totalQuantity.toStringAsFixed(3))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.averageTotal * item.totalQuantity))),
             ]);
           }).toList(),
         ),
@@ -391,7 +243,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
 
   Widget _buildReportView() {
 
-    if (!showReport || reportItems.isEmpty) {
+    if (!showReport || productionItems.isEmpty) {
       return const Center(
         child: Text('No data available for the selected period'),
       );
@@ -406,7 +258,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
               children: [
                 const SizedBox(height: 16),
                 Text(
-                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sold Report',
+                  'Item Wise Production Issue Report',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -422,13 +274,13 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
               ],
             ),
           ),
-          _buildReportTable(reportItems),
+          _buildReportTable(productionItems),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
-                'Total Amount($currency): ${NumberFormat('#,##0.00').format(reportItems[0].totalSales)}',
+                'Total Amount($currency): ${NumberFormat('#,##0.00').format(totalAmount)}',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -442,7 +294,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
   }
 
   Future<void> _generatePdf() async {
-    if (!showReport || reportItems.isEmpty) {
+    if (!showReport || productionItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data available to generate PDF')),
       );
@@ -459,10 +311,10 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
 
       // Split items into chunks for pagination
       const int itemsPerPage = 35; // Adjust this number based on your needs
-      final chunks = <List<SoldItem>>[];
-      for (var i = 0; i < reportItems.length; i += itemsPerPage) {
+      final chunks = <List<totalProduction>>[];
+      for (var i = 0; i < productionItems.length; i += itemsPerPage) {
         chunks.add(
-          reportItems.skip(i).take(itemsPerPage).toList(),
+          productionItems.skip(i).take(itemsPerPage).toList(),
         );
       }
 
@@ -493,7 +345,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                       pw.SizedBox(height: 5),
                       pw.Center(
                         child: pw.Text(
-                          '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sale Report',
+                          'Item Wise Production Issue Report',
                           style: pw.TextStyle(font: boldFont, fontSize: 14),
                         ),
                       ),
@@ -516,13 +368,12 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                     // Table
                     pw.Expanded(
                       child: pw.Table.fromTextArray(
-                        headers: ['Item ID', 'Item Name', 'Quantity', 'Price($currency)', 'Total($currency)'],
+                        headers: ['Item Id', 'Item Name', 'Issue Quantity', 'Issue Total($currency)'],
                         data: chunks[i].map((item) => [
                           item.itemId,
                           item.itemName,
-                          item.soldQuantity.toStringAsFixed(3),
-                          NumberFormat('#,##0.00').format(item.price),
-                          NumberFormat('#,##0.00').format(item.lineTotal),
+                          item.totalQuantity.toStringAsFixed(3),
+                          NumberFormat('#,##0.00').format(item.averageTotal * item.totalQuantity),
                         ]).toList(),
                         headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),  // Reduced font size
                         cellStyle: pw.TextStyle(font: font, fontSize: 8),  // Reduced font size
@@ -531,16 +382,14 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                         columnWidths: {
                           0: const pw.FlexColumnWidth(1),  // Item ID
                           1: const pw.FlexColumnWidth(3),  // Item Name
-                          2: const pw.FlexColumnWidth(1),  // Quantity
-                          3: const pw.FlexColumnWidth(1),  // Price
-                          4: const pw.FlexColumnWidth(1),  // Total
+                          2: const pw.FlexColumnWidth(2),  // Quantity
+                          3: const pw.FlexColumnWidth(2),  // Price
                         },
                         cellAlignments: {
                           0: pw.Alignment.centerLeft,
                           1: pw.Alignment.centerLeft,
                           2: pw.Alignment.centerRight,
                           3: pw.Alignment.centerRight,
-                          4: pw.Alignment.centerRight,
                         },
                       ),
                     ),
@@ -552,7 +401,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                         mainAxisAlignment: pw.MainAxisAlignment.end,
                         children: [
                           pw.Text(
-                            'Total Amount($currency): ${NumberFormat("#,##0.00").format(reportItems[0].totalSales)}',
+                            'Total Amount($currency): ${NumberFormat("#,##0.00").format(totalAmount)}',
                             style: pw.TextStyle(font: boldFont, fontSize: 10),
                           ),
                         ],
@@ -604,7 +453,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           final anchor = html.AnchorElement()
             ..href = url
             ..style.display = 'none'
-            ..download = 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+            ..download = 'Item_Wise_Production_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
           html.document.body!.children.add(anchor);
           anchor.click();
           html.document.body!.children.remove(anchor);
@@ -613,14 +462,14 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           // For desktop web, use Printing package
           await Printing.layoutPdf(
             onLayout: (PdfPageFormat format) async => pdf.save(),
-            name: 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+            name: 'Item_Wise_Production_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
           );
         }
       } else {
         // For native platforms, use Printing package
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'Sales_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+          name: 'Item_Wise_Production_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
         );
       }
     } catch (e) {
@@ -673,11 +522,11 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                 const SizedBox(height: 8), // Spacing between rows
                 // Second row with title
                 Text(
-                  'Sold Items',
+                  'Item Wise Production Report',
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 24,
+                    fontSize: 20,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -754,26 +603,6 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 16),
-                // Add Location Dropdown
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Location',
-                          style: GoogleFonts.poppins(
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildLocationDropdown(),
-                      ],
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(
