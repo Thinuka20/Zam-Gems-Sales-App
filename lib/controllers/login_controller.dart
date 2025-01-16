@@ -15,6 +15,10 @@ class LoginController extends GetxController {
 
   void setLoginData(dynamic response) {
     try {
+      // Clear existing data
+      loginData.clear();
+
+      // Process and set new login data
       if (response is Map<String, dynamic>) {
         loginData.value = response;
       } else if (response is String) {
@@ -31,6 +35,7 @@ class LoginController extends GetxController {
       loginData.value = {};
     }
   }
+
 
   Future<void> clearLoginData() async {
     try {

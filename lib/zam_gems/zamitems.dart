@@ -329,6 +329,11 @@ class _itemsZamState extends State<itemsZam> {
     _loadLocations();
   }
 
+  void _handleLogout() async {
+    final loginController = Get.find<LoginController>();
+    await loginController.clearLoginData();
+  }
+
   Widget _buildLocationDropdown() {
     return DropdownButtonFormField<DatabaseLocation>(
       value: _selectedLocation,
@@ -670,44 +675,48 @@ class _itemsZamState extends State<itemsZam> {
           backgroundColor: Theme.of(context).primaryColor,
           automaticallyImplyLeading: false,
           toolbarHeight: 120,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.power_settings_new,
-                  color: Colors.white, size: 28),
-              onPressed: () async {
-                final loginController = Get.find<LoginController>();
-                await loginController.clearLoginData();
-              },
-              tooltip: 'Logout',
-            ),
-            const SizedBox(width: 16),
-          ],
-          flexibleSpace: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 24),
-                    label: const Text('Back',
-                        style: TextStyle(color: Colors.white, fontSize: 20)),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+          flexibleSpace: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // First row with Back and Logout buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                      label: const Text(
+                        'Back',
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.power_settings_new,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: _handleLogout,
+                      tooltip: 'Logout',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8), // Spacing between rows
+                // Second row with title
+                Text(
+                  'Item Details',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 24,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              Text(
-                'Item Details',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 33,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         body: SingleChildScrollView(

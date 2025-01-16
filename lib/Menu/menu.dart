@@ -3,16 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:genix_reports/pages/billdetails.dart';
 import 'package:genix_reports/pages/datewise.dart';
 import 'package:genix_reports/pages/dashboard.dart';
-import 'package:genix_reports/pages/reports.dart';
+import 'package:genix_reports/Menu/production.dart';
+import 'package:genix_reports/Menu/reports.dart';
 import 'package:genix_reports/pages/salesreport.dart';
-import 'package:genix_reports/pages/salesreport2.dart';
-import 'package:genix_reports/pages/salesreport3.dart';
+import 'package:genix_reports/Skynet_Pro/salesreport2.dart';
+import 'package:genix_reports/retail/salesreport3.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
-
 import '../controllers/login_controller.dart';
-import '../zam_gems/zamitems.dart';
-import 'items.dart';
+import '../pages/items.dart';
 
 
 class DashboardPage extends StatelessWidget {
@@ -353,6 +352,52 @@ class DashboardPage extends StatelessWidget {
                 },
               ),
               const SizedBox(width: 25),
+              GetBuilder<LoginController>(
+                builder: (controller) {
+                  if (controller.specialType == "SKYNET Pro-Bakery") {
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        InkWell(
+                          onTap: () {
+                            Get.to(() => const ProductionMenu());
+                          },
+                          child: Card(
+                            color: Colors.white,
+                            child: Container(
+                              height: 80,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.factory,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Production',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.arrow_forward_ios),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return const SizedBox.shrink();
+                  }
+                },
+              ),
             ],
           ),
         ),

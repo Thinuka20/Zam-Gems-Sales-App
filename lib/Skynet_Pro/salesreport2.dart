@@ -644,47 +644,48 @@ class SalesReportPageState2 extends State<SalesReportPage2> with PwaPdfGenerator
         backgroundColor: Theme.of(context).primaryColor,
         automaticallyImplyLeading: false,
         toolbarHeight: 120,
-        actions: [
-          // Add logout button
-          IconButton(
-            icon: const Icon(
-              Icons.power_settings_new,
-              color: Colors.white,
-              size: 28,
-            ),
-            onPressed: _handleLogout,
-            tooltip: 'Logout', // Add tooltip for better UX
-          ),
-          const SizedBox(width: 16),
-        ],
-        flexibleSpace: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => Get.back(),
-                  icon: const Icon(Icons.arrow_back,
-                      color: Colors.white, size: 24),
-                  label: const Text(
-                    'Back',
-                    style: TextStyle(color: Colors.white, fontSize: 20),
+        flexibleSpace: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // First row with Back and Logout buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                    label: const Text(
+                      'Back',
+                      style: TextStyle(color: Colors.white, fontSize: 20),
+                    ),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
                   ),
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.power_settings_new,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: _handleLogout,
+                    tooltip: 'Logout',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8), // Spacing between rows
+              // Second row with title
+              Text(
+                'Sales Report',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 24,
                 ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            Text(
-              'Sales Report',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 33,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       body: SingleChildScrollView(

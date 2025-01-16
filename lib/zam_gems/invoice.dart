@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:genix_reports/controllers/login_controller.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -31,6 +32,11 @@ class _InvoicePdfViewerState extends State<InvoicePdfViewer> {
     saleId = args['saleId'];
     outletDataSource = args['outletDataSource'];
     _fetchInvoiceData();
+  }
+
+  void _handleLogout() async {
+    final loginController = Get.find<LoginController>();
+    await loginController.clearLoginData();
   }
 
   Future<void> _fetchInvoiceData() async {
@@ -292,34 +298,48 @@ class _InvoicePdfViewerState extends State<InvoicePdfViewer> {
           backgroundColor: Theme.of(context).primaryColor,
           automaticallyImplyLeading: false,
           toolbarHeight: 120,
-          flexibleSpace: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 24),
-                    label: const Text(
-                      'Back',
-                      style: TextStyle(color: Colors.white, fontSize: 20),
+          flexibleSpace: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // First row with Back and Logout buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                      label: const Text(
+                        'Back',
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     ),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.power_settings_new,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: _handleLogout,
+                      tooltip: 'Logout',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8), // Spacing between rows
+                // Second row with title
+                Text(
+                  'Invoice',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 24,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              Text(
-                'Invoice',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 33,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
           body: isLoading

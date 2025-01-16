@@ -195,11 +195,52 @@ class ApiService {
       return [];
     }
   }
+
+  Future<String> getItemName(String itemId, String ldatasource) async {
+    try {
+      final queryParameters = {
+        'itemId': itemId.toString(),
+        'connectionString': ldatasource,
+      };
+
+      final uri = Uri.parse('$baseUrl/itemName')
+          .replace(queryParameters: queryParameters);
+
+      print('Calling API with URI: $uri'); // Debug log
+
+      final response = await http.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      print('API Response Status Code: ${response.statusCode}'); // Debug log
+      print('API Response Body: ${response.body}'); // Debug log
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body) as Map<String, dynamic>;
+        final itemName = data['itemName'] as String?;
+
+        if (itemName == null || itemName.isEmpty) {
+          print('Item name is null or empty for ID: $itemId'); // Debug log
+          return 'Item Not Found';
+        }
+
+        return itemName;
+      } else {
+        print('API Error: ${response.statusCode} - ${response.body}'); // Debug log
+        return 'Item Not Found (Error ${response.statusCode})';
+      }
+    } catch (e) {
+      print('Exception in getItemName: $e'); // Debug log
+      return 'Error: $e';
+    }
+  }
 }
 
 class _ItemsState extends State<items> {
   DateTime? fromDate;
   DateTime? toDate;
+  String? itemName;
   bool isLoading = false;
   bool showReport = false;
   final TextEditingController _itemCodeController = TextEditingController();
@@ -213,6 +254,11 @@ class _ItemsState extends State<items> {
   bool isLoadingQuantity = false;
   bool isLoadingFlow = false;
   bool isLoadingPdf = false;
+
+  void _handleLogout() async {
+    final loginController = Get.find<LoginController>();
+    await loginController.clearLoginData();
+  }
 
   Future<void> _loadLocations() async {
     try {
@@ -248,23 +294,47 @@ class _ItemsState extends State<items> {
       return;
     }
 
-    setState(() => isLoadingQuantity = true);
+    setState(() {
+      isLoadingQuantity = true;
+      itemName = null; // Reset item name before new request
+    });
+
     try {
+      // First get the item name
+      final name = await _apiService.getItemName(
+        _itemCodeController.text,
+        _selectedLocation!.dPath,
+      );
+
+      print('Retrieved item name: $name'); // Debug log
+
+      // Then get the quantity
       final quantity = await _apiService.getAvailableStock(
         int.parse(_itemCodeController.text),
         _selectedLocation!.dPath,
       );
-      setState(() {
-        availableQuantity = quantity;
-        showReport = false;
-        itemFlowData = null;
-      });
+
+      print('Retrieved quantity: $quantity'); // Debug log
+
+      if (mounted) {
+        setState(() {
+          availableQuantity = quantity;
+          itemName = name;
+          showReport = false;
+          itemFlowData = null;
+        });
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      print('Error in _checkAvailableQuantity: $e'); // Debug log
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     } finally {
-      setState(() => isLoadingQuantity = false);
+      if (mounted) {
+        setState(() => isLoadingQuantity = false);
+      }
     }
   }
 
@@ -301,7 +371,8 @@ class _ItemsState extends State<items> {
       }
       print('Item Flow Data:');
       for (var item in data) {
-        print('${item.fieldI1},${item.itemid},${item.date},${item.type},${item.details},${item.credit},${item.debit},${item.fieldD3},${item.balance},${item.itemname}');
+        print(
+            '${item.fieldI1},${item.itemid},${item.date},${item.type},${item.details},${item.credit},${item.debit},${item.fieldD3},${item.balance},${item.itemname}');
       }
       setState(() {
         itemFlowData = data;
@@ -596,32 +667,49 @@ class _ItemsState extends State<items> {
     }
 
     final formatter = NumberFormat("#,##0.000", "en_US");
+    final itemName =
+        itemFlowData![0].itemname; // Get item name from first record
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Transaction Date')),
-          DataColumn(label: Text('Transaction Type')),
-          DataColumn(label: Text('Transaction Details')),
-          DataColumn(label: Text('Credit')),
-          DataColumn(label: Text('Debit')),
-          DataColumn(label: Text('Flow Balance')),
-        ],
-        rows: itemFlowData!.map((item) {
-          return DataRow(
-            cells: [
-              DataCell(Text(DateFormat('MM/dd/yyyy HH:mm')
-                  .format(item.date))), // Added time
-              DataCell(Text(item.type)),
-              DataCell(Text(item.details)),
-              DataCell(Text(formatter.format(item.credit))),
-              DataCell(Text(formatter.format(item.debit))),
-              DataCell(Text(formatter.format(item.balance))),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            'Item Name: $itemName',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('Transaction Date')),
+              DataColumn(label: Text('Transaction Type')),
+              DataColumn(label: Text('Transaction Details')),
+              DataColumn(label: Text('Credit')),
+              DataColumn(label: Text('Debit')),
+              DataColumn(label: Text('Flow Balance')),
             ],
-          );
-        }).toList(),
-      ),
+            rows: itemFlowData!.map((item) {
+              return DataRow(
+                cells: [
+                  DataCell(Text(DateFormat('MM/dd/yyyy HH:mm')
+                      .format(item.date))), // Added time
+                  DataCell(Text(item.type)),
+                  DataCell(Text(item.details)),
+                  DataCell(Text(formatter.format(item.credit))),
+                  DataCell(Text(formatter.format(item.debit))),
+                  DataCell(Text(formatter.format(item.balance))),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -665,44 +753,49 @@ class _ItemsState extends State<items> {
           backgroundColor: Theme.of(context).primaryColor,
           automaticallyImplyLeading: false,
           toolbarHeight: 120,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.power_settings_new,
-                  color: Colors.white, size: 28),
-              onPressed: () async {
-                final loginController = Get.find<LoginController>();
-                await loginController.clearLoginData();
-              },
-              tooltip: 'Logout',
-            ),
-            const SizedBox(width: 16),
-          ],
-          flexibleSpace: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 24),
-                    label: const Text('Back',
-                        style: TextStyle(color: Colors.white, fontSize: 20)),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+          flexibleSpace: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // First row with Back and Logout buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 24),
+                      label: const Text(
+                        'Back',
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.power_settings_new,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: _handleLogout,
+                      tooltip: 'Logout',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8), // Spacing between rows
+                // Second row with title
+                Text(
+                  'Item Details',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 24,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              Text(
-                'Item Details',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 33,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         body: SingleChildScrollView(
@@ -836,6 +929,18 @@ class _ItemsState extends State<items> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text('Item Details',
+                            style:
+                                GoogleFonts.poppins(color: Colors.grey[600])),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Item Name: ${itemName ?? ""}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Text('Available Quantity',
                             style:
                                 GoogleFonts.poppins(color: Colors.grey[600])),
