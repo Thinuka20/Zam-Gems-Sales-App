@@ -695,6 +695,12 @@ class SalesReportPageState extends State<SalesReportPage> with PwaPdfGenerator {
     await loginController.clearLoginData();
   }
 
+  Future<void> _onRefresh() async {
+    if (fromDate != null && toDate != null) {
+      await _generateReport();
+    }
+  }
+
   Future<void> _selectDate(BuildContext context, bool isFromDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -1165,132 +1171,135 @@ Future<void> _generatePDF() async {
             ),
           ),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Card(
-                      child: InkWell(
-                        onTap: () => _selectDate(context, true),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'From Date',
-                                style: GoogleFonts.poppins(
-                                    color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                fromDate != null
-                                    ? DateFormat('yyyy-MM-dd').format(fromDate!)
-                                    : 'Select Date',
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Card(
+                        child: InkWell(
+                          onTap: () => _selectDate(context, true),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'From Date',
+                                  style: GoogleFonts.poppins(
+                                      color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  fromDate != null
+                                      ? DateFormat('yyyy-MM-dd').format(fromDate!)
+                                      : 'Select Date',
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Card(
-                      child: InkWell(
-                        onTap: () => _selectDate(context, false),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'To Date',
-                                style: GoogleFonts.poppins(
-                                    color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                toDate != null
-                                    ? DateFormat('yyyy-MM-dd').format(toDate!)
-                                    : 'Select Date',
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Card(
+                        child: InkWell(
+                          onTap: () => _selectDate(context, false),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'To Date',
+                                  style: GoogleFonts.poppins(
+                                      color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  toDate != null
+                                      ? DateFormat('yyyy-MM-dd').format(toDate!)
+                                      : 'Select Date',
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: isLoading ? null : _generateReport,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  ],
                 ),
-                child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        'Generate Report',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-              ),
-              if (showReport) ...[
                 const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: isLoading ? null : _generatePDF,
-                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-                  label: Text(
-                    'Generate PDF',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                ElevatedButton(
+                  onPressed: isLoading ? null : _generateReport,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Theme.of(context).primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          'Generate Report',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  child: SalesBarChart(salesData: reportData),
-                ),
-                const SizedBox(height: 24),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    horizontalMargin: 10,
-                    columnSpacing: 10,
-                    columns: _getHeaders()
-                        .map((header) => DataColumn(label: Text(header)))
-                        .toList(),
-                    rows: _generateTableRows(),
+                if (showReport) ...[
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: isLoading ? null : _generatePDF,
+                    icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                    label: Text(
+                      'Generate PDF',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    child: SalesBarChart(salesData: reportData),
+                  ),
+                  const SizedBox(height: 24),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      horizontalMargin: 10,
+                      columnSpacing: 10,
+                      columns: _getHeaders()
+                          .map((header) => DataColumn(label: Text(header)))
+                          .toList(),
+                      rows: _generateTableRows(),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

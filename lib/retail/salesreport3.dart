@@ -190,6 +190,12 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
     await loginController.clearLoginData();
   }
 
+  Future<void> _onRefresh() async {
+    if (fromDate != null && toDate != null) {
+      await _generateReport();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -320,6 +326,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
     double grandTotalCash = 0;
     double grandTotalCard = 0;
     double grandTotalCredit = 0;
+    double grandTotalBank = 0;
 
     // Sort business names alphabetically
     final sortedBusinessNames = groupedData.keys.toList()..sort();
@@ -331,13 +338,14 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
       rows.add(DataRow(cells: [
         DataCell(Text(businessName,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-        ...List.generate(4, (index) => const DataCell(Text(''))),
+        ...List.generate(5, (index) => const DataCell(Text(''))),
       ]));
 
       double businessTotalIncome = 0;
       double businessTotalCash = 0;
       double businessTotalCard = 0;
       double businessTotalCredit = 0;
+      double businessTotalBank = 0;
 
       // Add rows for each place under this business
       for (var data in businessData) {
@@ -347,6 +355,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
           DataCell(Text(NumberFormat('#,##0.00').format(data.cash))),
           DataCell(Text(NumberFormat('#,##0.00').format(data.card))),
           DataCell(Text(NumberFormat('#,##0.00').format(data.credit))),
+          DataCell(Text(NumberFormat('#,##0.00').format(data.advance))),
         ]));
 
         // Add to business totals
@@ -354,6 +363,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
         businessTotalCash += data.cash;
         businessTotalCard += data.card;
         businessTotalCredit += data.credit;
+        businessTotalBank += data.advance;
       }
 
       // Add business total row
@@ -369,12 +379,14 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
               style: const TextStyle(fontWeight: FontWeight.bold))),
           DataCell(Text(NumberFormat('#,##0.00').format(businessTotalCredit),
               style: const TextStyle(fontWeight: FontWeight.bold))),
+          DataCell(Text(NumberFormat('#,##0.00').format(businessTotalBank),
+              style: const TextStyle(fontWeight: FontWeight.bold))),
         ],
       ));
 
       // Add separator row
       rows.add(DataRow(
-        cells: List.generate(5, (index) => const DataCell(
+        cells: List.generate(6, (index) => const DataCell(
             SizedBox(height: 10, child: Text(''))
         )),
       ));
@@ -384,6 +396,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
       grandTotalCash += businessTotalCash;
       grandTotalCard += businessTotalCard;
       grandTotalCredit += businessTotalCredit;
+      grandTotalBank += businessTotalBank;
     }
 
     // Add grand total row
@@ -399,6 +412,8 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
           DataCell(Text(NumberFormat('#,##0.00').format(grandTotalCard),
               style: const TextStyle(fontWeight: FontWeight.bold))),
           DataCell(Text(NumberFormat('#,##0.00').format(grandTotalCredit),
+              style: const TextStyle(fontWeight: FontWeight.bold))),
+          DataCell(Text(NumberFormat('#,##0.00').format(grandTotalBank),
               style: const TextStyle(fontWeight: FontWeight.bold))),
         ],
       ));
@@ -464,6 +479,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
                       'Cash ($currency)',
                       'Card ($currency)',
                       'Credit ($currency)',
+                      'Bank ($currency)',
                     ],
                     data: _generatePDFData(),
                     columnWidths: {
@@ -472,6 +488,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
                       2: const pw.FlexColumnWidth(1.6),
                       3: const pw.FlexColumnWidth(1.6),
                       4: const pw.FlexColumnWidth(1.6),
+                      5: const pw.FlexColumnWidth(1.6),
                     },
                     headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     headerDecoration: const pw.BoxDecoration(
@@ -484,6 +501,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
                       2: pw.Alignment.centerRight,
                       3: pw.Alignment.centerRight,
                       4: pw.Alignment.centerRight,
+                      5: pw.Alignment.centerRight,
                     },
                   ),
 
@@ -548,6 +566,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
     double grandTotalCash = 0;
     double grandTotalCard = 0;
     double grandTotalCredit = 0;
+    double grandTotalBank = 0;
 
     final sortedBusinessNames = groupedData.keys.toList()..sort();
 
@@ -561,12 +580,14 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
         '',
         '',
         '',
+        '',
       ]);
 
       double businessTotalIncome = 0;
       double businessTotalCash = 0;
       double businessTotalCard = 0;
       double businessTotalCredit = 0;
+      double businessTotalBank = 0;
 
       // Add place data rows for this business
       for (var item in businessData) {
@@ -576,6 +597,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
           NumberFormat('#,##0.00').format(item.cash),
           NumberFormat('#,##0.00').format(item.card),
           NumberFormat('#,##0.00').format(item.credit),
+          NumberFormat('#,##0.00').format(item.advance),
         ]);
 
         // Add to business totals
@@ -583,6 +605,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
         businessTotalCash += item.cash;
         businessTotalCard += item.card;
         businessTotalCredit += item.credit;
+        businessTotalBank += item.advance;
       }
 
       // Add business total row
@@ -592,16 +615,18 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
         NumberFormat('#,##0.00').format(businessTotalCash),
         NumberFormat('#,##0.00').format(businessTotalCard),
         NumberFormat('#,##0.00').format(businessTotalCredit),
+        NumberFormat('#,##0.00').format(businessTotalBank),
       ]);
 
       // Add empty row as separator
-      data.add(['', '', '', '', '']);
+      data.add(['', '', '', '', '', '']);
 
       // Add to grand totals
       grandTotalIncome += businessTotalIncome;
       grandTotalCash += businessTotalCash;
       grandTotalCard += businessTotalCard;
       grandTotalCredit += businessTotalCredit;
+      grandTotalBank += businessTotalBank;
     }
 
     // Add grand total row
@@ -612,6 +637,7 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
         NumberFormat('#,##0.00').format(grandTotalCash),
         NumberFormat('#,##0.00').format(grandTotalCard),
         NumberFormat('#,##0.00').format(grandTotalCredit),
+        NumberFormat('#,##0.00').format(grandTotalBank),
       ]);
     }
 
@@ -668,144 +694,148 @@ class SalesReportPageState3 extends State<SalesReportPage3> with PwaPdfGenerator
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Card(
-                    child: InkWell(
-                      onTap: () => _selectDate(context, true),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'From Date',
-                              style:
-                              GoogleFonts.poppins(color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              fromDate != null
-                                  ? DateFormat('yyyy-MM-dd').format(fromDate!)
-                                  : 'Select Date',
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ],
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Card(
+                      child: InkWell(
+                        onTap: () => _selectDate(context, true),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'From Date',
+                                style:
+                                GoogleFonts.poppins(color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                fromDate != null
+                                    ? DateFormat('yyyy-MM-dd').format(fromDate!)
+                                    : 'Select Date',
+                                style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Card(
-                    child: InkWell(
-                      onTap: () => _selectDate(context, false),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'To Date',
-                              style:
-                              GoogleFonts.poppins(color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              toDate != null
-                                  ? DateFormat('yyyy-MM-dd').format(toDate!)
-                                  : 'Select Date',
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600),
-                            ),
-                          ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Card(
+                      child: InkWell(
+                        onTap: () => _selectDate(context, false),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'To Date',
+                                style:
+                                GoogleFonts.poppins(color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                toDate != null
+                                    ? DateFormat('yyyy-MM-dd').format(toDate!)
+                                    : 'Select Date',
+                                style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: isLoading ? null : _generateReport,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                ],
               ),
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(
-                'Generate Report',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            if (showReport) ...[
               const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: isLoading ? null : _generatePDF,
-                icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-                label: Text(
-                  'Generate PDF',
+              ElevatedButton(
+                onPressed: isLoading ? null : _generateReport,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                  'Generate Report',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              ),
+              if (showReport) ...[
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: isLoading ? null : _generatePDF,
+                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                  label: Text(
+                    'Generate PDF',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: searchController,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: 'Search by Location',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
+                const SizedBox(height: 24),
+                TextField(
+                  controller: searchController,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search by Location',
+                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  onChanged: (value) => _onSearchChanged(),
                 ),
-                onChanged: (value) => _onSearchChanged(),
-              ),
-              const SizedBox(height: 16),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  horizontalMargin: 10, // Removes left spacing
-                  columnSpacing: 30,
-                  columns: [
-                    const DataColumn(label: Text('Location')),
-                    DataColumn(label: Text('Total Sales ($currency)')),
-                    DataColumn(label: Text('Cash ($currency)')),
-                    DataColumn(label: Text('Card ($currency)')),
-                    DataColumn(label: Text('Credit ($currency)')),
-                  ],
-                  rows: _generateTableRows(),
+                const SizedBox(height: 16),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    horizontalMargin: 10, // Removes left spacing
+                    columnSpacing: 30,
+                    columns: [
+                      const DataColumn(label: Text('Location')),
+                      DataColumn(label: Text('Total Sales ($currency)')),
+                      DataColumn(label: Text('Cash ($currency)')),
+                      DataColumn(label: Text('Card ($currency)')),
+                      DataColumn(label: Text('Credit ($currency)')),
+                      DataColumn(label: Text('Bank ($currency)')),
+                    ],
+                    rows: _generateTableRows(),
+                  ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

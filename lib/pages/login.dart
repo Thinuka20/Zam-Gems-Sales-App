@@ -340,7 +340,7 @@ class LoginPageState extends State<LoginPage> {
       final password = _passcodeController.text.trim();
 
       final response = await _apiService.login(password, username);
-      final loginController = Get.put(LoginController());
+      final loginController = Get.put(LoginController(), permanent: true);
       loginController.setLoginData(response);
 
       // Print stored data
