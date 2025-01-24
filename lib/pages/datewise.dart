@@ -191,6 +191,12 @@ class _DatewiseState extends State<Datewise> {
     await loginController.clearLoginData();
   }
 
+  Future<void> _onRefresh() async {
+    if (fromDate != null && toDate != null) {
+      await _fetchBillSummary();
+    }
+  }
+
   Future<void> _selectDate(BuildContext context, bool isFromDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -328,97 +334,100 @@ class _DatewiseState extends State<Datewise> {
             ),
           ),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Card(
-                      child: InkWell(
-                        onTap: () => _selectDate(context, true),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'From Date',
-                                style: GoogleFonts.poppins(
-                                    color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                fromDate != null
-                                    ? DateFormat('yyyy-MM-dd').format(fromDate!)
-                                    : 'Select Date',
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Card(
+                        child: InkWell(
+                          onTap: () => _selectDate(context, true),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'From Date',
+                                  style: GoogleFonts.poppins(
+                                      color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  fromDate != null
+                                      ? DateFormat('yyyy-MM-dd').format(fromDate!)
+                                      : 'Select Date',
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Card(
-                      child: InkWell(
-                        onTap: () => _selectDate(context, false),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'To Date',
-                                style: GoogleFonts.poppins(
-                                    color: Colors.grey[600]),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                toDate != null
-                                    ? DateFormat('yyyy-MM-dd').format(toDate!)
-                                    : 'Select Date',
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Card(
+                        child: InkWell(
+                          onTap: () => _selectDate(context, false),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'To Date',
+                                  style: GoogleFonts.poppins(
+                                      color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  toDate != null
+                                      ? DateFormat('yyyy-MM-dd').format(toDate!)
+                                      : 'Select Date',
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _fetchBillSummary,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                    'Generate',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                if (showReport && billSummaries.isNotEmpty) ...[
+                  DateWiseBarChart(billSummaries: billSummaries),
                 ],
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _fetchBillSummary,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                  'Generate',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              if (showReport && billSummaries.isNotEmpty) ...[
-                DateWiseBarChart(billSummaries: billSummaries),
               ],
-            ],
+            ),
           ),
         ),
       ),

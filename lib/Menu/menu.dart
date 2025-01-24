@@ -13,7 +13,6 @@ import 'package:get/get.dart';
 import '../controllers/login_controller.dart';
 import '../pages/items.dart';
 
-
 class DashboardPage extends StatelessWidget {
   const DashboardPage({Key? key}) : super(key: key);
 
@@ -57,7 +56,7 @@ class DashboardPage extends StatelessWidget {
             ],
           ),
         ),
-        body: Padding(
+        body: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
@@ -169,18 +168,68 @@ class DashboardPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
+              GetBuilder<LoginController>(
+                builder: (controller) {
+                  if (controller.specialType != "Retail") {
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        InkWell(
+                          onTap: () {
+                            final loginController = Get.find<LoginController>();
+                            final specialType = loginController.specialType;
+
+                            if (specialType == "GEM") {
+                              Get.to(() => const SalesReportPage());
+                            } else {
+                              Get.to(() => const SalesReportPage2());
+                            }
+                          },
+                          child: Card(
+                            color: Colors.white,
+                            child: Container(
+                              height: 80,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment
+                                    .center, // Centers horizontally
+                                crossAxisAlignment: CrossAxisAlignment
+                                    .center, // Centers vertically
+                                children: [
+                                  Icon(
+                                    Icons.location_on_rounded,
+                                    color: Theme.of(context).primaryColor,
+                                    size: 40,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    'Location Wise Sales',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.arrow_forward_ios),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [],
+                    );
+                  }
+                },
+              ),
               InkWell(
                 onTap: () {
-                  final loginController = Get.find<LoginController>();
-                  final specialType = loginController.specialType;
-
-                  if(specialType == "GEM"){
-                    Get.to(() => const SalesReportPage());
-                  }else if(specialType == "Retail") {
-                    Get.to(() => const SalesReportPage3());
-                  }else {
-                    Get.to(() => const SalesReportPage2());
-                  }
+                  Get.to(() => const ReportsMenu());
                 },
                 child: Card(
                   color: Colors.white,
@@ -188,19 +237,17 @@ class DashboardPage extends StatelessWidget {
                     height: 80,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center, // Centers horizontally
-                      crossAxisAlignment:
-                          CrossAxisAlignment.center, // Centers vertically
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.location_on_rounded,
+                          Icons.bar_chart_rounded,
                           color: Theme.of(context).primaryColor,
                           size: 40,
                         ),
                         const SizedBox(width: 16),
                         Text(
-                          'Location Wise Sales',
+                          'Reports',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                             fontSize: 20,
@@ -213,58 +260,12 @@ class DashboardPage extends StatelessWidget {
                   ),
                 ),
               ),
-              GetBuilder<LoginController>(
-                builder: (controller) {
-                  if (controller.specialType != "Retail") {
-                    return Column(
-                      children: [
-                        const SizedBox(height: 10),
-                        InkWell(
-                          onTap: () {
-                            Get.to(() => const ReportsMenu());
-                          },
-                          child: Card(
-                            color: Colors.white,
-                            child: Container(
-                              height: 80,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.bar_chart_rounded,
-                                    color: Theme.of(context).primaryColor,
-                                    size: 40,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Text(
-                                    'Reports',
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 20,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  const Icon(Icons.arrow_forward_ios),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    return const SizedBox.shrink();
-                  }
-                },
-              ),
+              const SizedBox(height: 10),
               GetBuilder<LoginController>(
                 builder: (controller) {
                   if (controller.specialType != "GEM") {
                     return Column(
                       children: [
-                        const SizedBox(height: 10),
                         InkWell(
                           onTap: () {
                             Get.to(() => const items());
@@ -273,7 +274,8 @@ class DashboardPage extends StatelessWidget {
                             color: Colors.white,
                             child: Container(
                               height: 80,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -285,7 +287,7 @@ class DashboardPage extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 16),
                                   Text(
-                                    'Items',
+                                    'Audit Items',
                                     style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 20,
@@ -298,66 +300,21 @@ class DashboardPage extends StatelessWidget {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 10),
                       ],
                     );
                   } else {
-                    return const SizedBox.shrink();
-                  }
-                },
-              ),
-              GetBuilder<LoginController>(
-                builder: (controller) {
-                  if (controller.specialType == "GEM") {
                     return Column(
-                      children: [
-                        const SizedBox(height: 10),
-                        InkWell(
-                          onTap: () {
-                            Get.to(() => const items());
-                          },
-                          child: Card(
-                            color: Colors.white,
-                            child: Container(
-                              height: 80,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.shopping_cart,
-                                    color: Theme.of(context).primaryColor,
-                                    size: 40,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Text(
-                                    'Advanced',
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 20,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  const Icon(Icons.arrow_forward_ios),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      children: [],
                     );
-                  } else {
-                    return const SizedBox.shrink();
                   }
                 },
               ),
-              const SizedBox(width: 25),
               GetBuilder<LoginController>(
                 builder: (controller) {
                   if (controller.specialType == "SKYNET Pro-Bakery") {
                     return Column(
                       children: [
-                        const SizedBox(height: 10),
                         InkWell(
                           onTap: () {
                             Get.to(() => const ProductionMenu());
@@ -366,7 +323,8 @@ class DashboardPage extends StatelessWidget {
                             color: Colors.white,
                             child: Container(
                               height: 80,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -394,10 +352,13 @@ class DashboardPage extends StatelessWidget {
                       ],
                     );
                   } else {
-                    return const SizedBox.shrink();
+                    return Column(
+                      children: [],
+                    );
                   }
                 },
               ),
+              const SizedBox(height: 30),
             ],
           ),
         ),

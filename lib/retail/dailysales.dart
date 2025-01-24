@@ -48,41 +48,44 @@ class DatabaseLocation {
   }
 }
 
-class SoldItem {
-  final int itemId;
-  final String itemName;
-  final double soldQuantity;
-  final double price;
-  final double totalSales;
-  final double lineTotal;
+class Dailysales {
+  final String date;
+  final double totalSale;
+  final double totalCash;
+  final double totalCard;
+  final double totalCheque;
+  final double totalCredit;
+  final double totalBank;
 
-  SoldItem({
-    required this.itemId,
-    required this.itemName,
-    required this.soldQuantity,
-    required this.price,
-    required this.totalSales,
-    required this.lineTotal,
+  Dailysales({
+    required this.date,
+    required this.totalSale,
+    required this.totalCash,
+    required this.totalCard,
+    required this.totalCheque,
+    required this.totalCredit,
+    required this.totalBank,
   });
 
-  factory SoldItem.fromJson(Map<String, dynamic> json) {
-    return SoldItem(
-      itemId: json['itemId'] as int? ?? 0,
-      itemName: json['itemName'] as String? ?? 'Unknown Item',
-      soldQuantity: (json['soldQuantity'] as num?)?.toDouble() ?? 0.0,
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      totalSales: (json['totalSales'] as num?)?.toDouble() ?? 0.0,
-      lineTotal: (json['lineTotal'] as num?)?.toDouble() ?? 0.0,
+  factory Dailysales.fromJson(Map<String, dynamic> json) {
+    return Dailysales(
+      date: json['date'] as String? ?? 'Unknown Item',
+      totalSale: (json['totalSale'] as num?)?.toDouble() ?? 0.0,
+      totalCash: (json['totalCash'] as num?)?.toDouble() ?? 0.0,
+      totalCard: (json['totalCard'] as num?)?.toDouble() ?? 0.0,
+      totalCheque: (json['totalCheque'] as num?)?.toDouble() ?? 0.0,
+      totalCredit: (json['totalCredit'] as num?)?.toDouble() ?? 0.0,
+      totalBank: (json['totalBank'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
 
-class SoldItemsReport extends StatefulWidget {
+class DailysalesReport extends StatefulWidget {
   // Renamed to SoldItemsReport
-  const SoldItemsReport({super.key});
+  const DailysalesReport({super.key});
 
   @override
-  State<SoldItemsReport> createState() => _SoldItemsReportState();
+  State<DailysalesReport> createState() => _DailysalesReportState();
 }
 
 class ApiService {
@@ -115,7 +118,7 @@ class ApiService {
     }
   }
 
-  Future<List<SoldItem>> getSoldItems({
+  Future<List<Dailysales>> getDailySales({
     required DateTime startDate,
     required DateTime endDate,
     required DatabaseLocation location,
@@ -127,7 +130,7 @@ class ApiService {
         'connectionString': location.dPath,
       };
 
-      final uri = Uri.parse('$baseUrl/itemsalesreport')
+      final uri = Uri.parse('$baseUrl/datewiseSales')
           .replace(queryParameters: queryParameters);
 
       print('Request URL: $uri'); // Print the request URL
@@ -145,8 +148,8 @@ class ApiService {
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         final List<dynamic> itemsJson = json.decode(response.body) as List<dynamic>? ?? [];
         return itemsJson
-            .map((json) => SoldItem.fromJson(json as Map<String, dynamic>))
-            .where((item) => item.itemId != 0) // Filter out invalid items
+            .map((json) => Dailysales.fromJson(json as Map<String, dynamic>))
+            .where((item) => item.date != '') // Filter out invalid items
             .toList();
       } else {
         throw Exception('Failed to load sold items: ${response.statusCode}');
@@ -158,12 +161,12 @@ class ApiService {
   }
 }
 
-class _SoldItemsReportState extends State<SoldItemsReport> {
+class _DailysalesReportState extends State<DailysalesReport> {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
   bool showReport = false;
-  List<SoldItem> reportItems = [];  // List to store items
+  List<Dailysales> salesummary = [];  // List to store items
   double totalAmount = 0.0;  // Total amount variable
   late final ApiService _apiService;
   List<DatabaseLocation> _locations = [];
@@ -229,7 +232,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
       print('Selected location: ${_selectedLocation!.locationName}');
 
       // Updated API call with named parameters
-      final items = await _apiService.getSoldItems(
+      final items = await _apiService.getDailySales(
           startDate: fromDate!,
           endDate: toDate!,
           location: _selectedLocation!
@@ -240,11 +243,11 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
       // Calculate total amount safely
       double total = 0.0;
       for (var item in items) {
-        total += item.lineTotal;
+        total += item.totalSale;
       }
 
       setState(() {
-        reportItems = items;
+        salesummary = items;
         totalAmount = total;
         showReport = true;
       });
@@ -359,7 +362,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
     }
   }
 
-  Widget _buildReportTable(List<SoldItem> items) {
+  Widget _buildReportTable(List<Dailysales> items) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black),
@@ -369,19 +372,23 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: const [
-            DataColumn(label: Text('Item ID')),
-            DataColumn(label: Text('Item Name')),
-            DataColumn(label: Text('Quantity')),
-            DataColumn(label: Text('Price')),
-            DataColumn(label: Text('Total')),
+            DataColumn(label: Text('Date')),
+            DataColumn(label: Text('Total Sale')),
+            DataColumn(label: Text('Cash')),
+            DataColumn(label: Text('Card')),
+            DataColumn(label: Text('Cheque')),
+            DataColumn(label: Text('Credit')),
+            DataColumn(label: Text('Bank')),
           ],
           rows: items.map((item) {
             return DataRow(cells: [
-              DataCell(Text(item.itemId.toString())),
-              DataCell(Text(item.itemName)),
-              DataCell(Text(item.soldQuantity.toStringAsFixed(3))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.price))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.lineTotal))),
+              DataCell(Text(item.date)),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.totalSale))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCash))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCard))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCheque))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCredit))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.totalBank))),
             ]);
           }).toList(),
         ),
@@ -391,7 +398,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
 
   Widget _buildReportView() {
 
-    if (!showReport || reportItems.isEmpty) {
+    if (!showReport || salesummary.isEmpty) {
       return const Center(
         child: Text('No data available for the selected period'),
       );
@@ -406,7 +413,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
               children: [
                 const SizedBox(height: 16),
                 Text(
-                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sold Report',
+                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Daily Sales Summary Report',
                   style: GoogleFonts.poppins(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -422,13 +429,13 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
               ],
             ),
           ),
-          _buildReportTable(reportItems),
+          _buildReportTable(salesummary),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
-                'Total Amount($currency): ${NumberFormat('#,##0.00').format(reportItems[0].totalSales)}',
+                'Total Sales ($currency): ${NumberFormat('#,##0.00').format(totalAmount)}',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -442,7 +449,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
   }
 
   Future<void> _generatePdf() async {
-    if (!showReport || reportItems.isEmpty) {
+    if (!showReport || salesummary.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data available to generate PDF')),
       );
@@ -459,10 +466,10 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
 
       // Split items into chunks for pagination
       const int itemsPerPage = 35; // Adjust this number based on your needs
-      final chunks = <List<SoldItem>>[];
-      for (var i = 0; i < reportItems.length; i += itemsPerPage) {
+      final chunks = <List<Dailysales>>[];
+      for (var i = 0; i < salesummary.length; i += itemsPerPage) {
         chunks.add(
-          reportItems.skip(i).take(itemsPerPage).toList(),
+          salesummary.skip(i).take(itemsPerPage).toList(),
         );
       }
 
@@ -493,7 +500,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                       pw.SizedBox(height: 5),
                       pw.Center(
                         child: pw.Text(
-                          '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sale Report',
+                          '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Daily Sales Summary Report',
                           style: pw.TextStyle(font: boldFont, fontSize: 14),
                         ),
                       ),
@@ -516,31 +523,37 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                     // Table
                     pw.Expanded(
                       child: pw.Table.fromTextArray(
-                        headers: ['Item ID', 'Item Name', 'Quantity', 'Price($currency)', 'Total($currency)'],
+                        headers: ['Date', 'Total Sale ($currency)', 'Cash ($currency)', 'Card ($currency)', 'Cheque ($currency)', 'Credit ($currency)', 'Bank ($currency)'],
                         data: chunks[i].map((item) => [
-                          item.itemId,
-                          item.itemName,
-                          item.soldQuantity.toStringAsFixed(3),
-                          NumberFormat('#,##0.00').format(item.price),
-                          NumberFormat('#,##0.00').format(item.lineTotal),
+                          item.date,
+                          NumberFormat('#,##0.00').format(item.totalSale),
+                          NumberFormat('#,##0.00').format(item.totalCash),
+                          NumberFormat('#,##0.00').format(item.totalCard),
+                          NumberFormat('#,##0.00').format(item.totalCheque),
+                          NumberFormat('#,##0.00').format(item.totalCredit),
+                          NumberFormat('#,##0.00').format(item.totalBank),
                         ]).toList(),
                         headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),  // Reduced font size
                         cellStyle: pw.TextStyle(font: font, fontSize: 8),  // Reduced font size
                         headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
                         cellHeight: 20,  // Reduced cell height
                         columnWidths: {
-                          0: const pw.FlexColumnWidth(1),  // Item ID
-                          1: const pw.FlexColumnWidth(3),  // Item Name
-                          2: const pw.FlexColumnWidth(1),  // Quantity
-                          3: const pw.FlexColumnWidth(1),  // Price
-                          4: const pw.FlexColumnWidth(1),  // Total
+                          0: const pw.FlexColumnWidth(1),
+                          1: const pw.FlexColumnWidth(1),
+                          2: const pw.FlexColumnWidth(1),
+                          3: const pw.FlexColumnWidth(1),
+                          4: const pw.FlexColumnWidth(1),
+                          5: const pw.FlexColumnWidth(1),
+                          6: const pw.FlexColumnWidth(1),
                         },
                         cellAlignments: {
                           0: pw.Alignment.centerLeft,
-                          1: pw.Alignment.centerLeft,
+                          1: pw.Alignment.centerRight,
                           2: pw.Alignment.centerRight,
                           3: pw.Alignment.centerRight,
                           4: pw.Alignment.centerRight,
+                          5: pw.Alignment.centerRight,
+                          6: pw.Alignment.centerRight,
                         },
                       ),
                     ),
@@ -552,7 +565,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                         mainAxisAlignment: pw.MainAxisAlignment.end,
                         children: [
                           pw.Text(
-                            'Total Amount($currency): ${NumberFormat("#,##0.00").format(reportItems[0].totalSales)}',
+                            'Total Sales ($currency): ${NumberFormat("#,##0.00").format(totalAmount)}',
                             style: pw.TextStyle(font: boldFont, fontSize: 10),
                           ),
                         ],
@@ -604,7 +617,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           final anchor = html.AnchorElement()
             ..href = url
             ..style.display = 'none'
-            ..download = 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+            ..download = 'Daily_Sales_Summary_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
           html.document.body!.children.add(anchor);
           anchor.click();
           html.document.body!.children.remove(anchor);
@@ -613,14 +626,14 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           // For desktop web, use Printing package
           await Printing.layoutPdf(
             onLayout: (PdfPageFormat format) async => pdf.save(),
-            name: 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+            name: 'Daily_Sales_Summary_${DateFormat('yyyyMMdd').format(DateTime.now())}',
           );
         }
       } else {
         // For native platforms, use Printing package
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+          name: 'Daily_Sales_Summary_${DateFormat('yyyyMMdd').format(DateTime.now())}',
         );
       }
     } catch (e) {
@@ -673,11 +686,11 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                 const SizedBox(height: 8), // Spacing between rows
                 // Second row with title
                 Text(
-                  'Sold Items',
+                  'Daily Sales Summary',
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 24,
+                    fontSize: 20,
                   ),
                   textAlign: TextAlign.center,
                 ),

@@ -74,7 +74,7 @@ class ProductionMenu extends StatelessWidget {
             ),
           ),
         ),
-        body: Padding(
+        body: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
@@ -114,6 +114,7 @@ class ProductionMenu extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 10),
                   InkWell(
                     onTap: () {
                       Get.to(() =>
@@ -148,6 +149,7 @@ class ProductionMenu extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 10),
                   InkWell(
                     onTap: () {
                       Get.to(() =>
@@ -184,7 +186,7 @@ class ProductionMenu extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 30),
             ],
           ),
         ),

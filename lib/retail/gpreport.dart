@@ -48,41 +48,34 @@ class DatabaseLocation {
   }
 }
 
-class SoldItem {
-  final int itemId;
-  final String itemName;
-  final double soldQuantity;
-  final double price;
-  final double totalSales;
-  final double lineTotal;
+class gpreport {
+  final double totalIncome;
+  final double totalPurchase;
+  final double totalExpenses;
+  final double gp;
 
-  SoldItem({
-    required this.itemId,
-    required this.itemName,
-    required this.soldQuantity,
-    required this.price,
-    required this.totalSales,
-    required this.lineTotal,
+  const gpreport({
+    required this.totalIncome,
+    required this.totalPurchase,
+    required this.totalExpenses,
+    required this.gp,
   });
-
-  factory SoldItem.fromJson(Map<String, dynamic> json) {
-    return SoldItem(
-      itemId: json['itemId'] as int? ?? 0,
-      itemName: json['itemName'] as String? ?? 'Unknown Item',
-      soldQuantity: (json['soldQuantity'] as num?)?.toDouble() ?? 0.0,
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      totalSales: (json['totalSales'] as num?)?.toDouble() ?? 0.0,
-      lineTotal: (json['lineTotal'] as num?)?.toDouble() ?? 0.0,
+  factory gpreport.fromJson(Map<String, dynamic> json) {
+    return gpreport(
+      totalIncome: json['totalIncome']?.toDouble() ?? 0.0,
+      totalPurchase: json['totalPurchase']?.toDouble() ?? 0.0,
+      totalExpenses: json['totalExpenses']?.toDouble() ?? 0.0,
+      gp: json['gp']?.toDouble() ?? 0.0,
     );
   }
 }
 
-class SoldItemsReport extends StatefulWidget {
+class GPReport extends StatefulWidget {
   // Renamed to SoldItemsReport
-  const SoldItemsReport({super.key});
+  const GPReport({super.key});
 
   @override
-  State<SoldItemsReport> createState() => _SoldItemsReportState();
+  State<GPReport> createState() => _GPReportState();
 }
 
 class ApiService {
@@ -115,7 +108,7 @@ class ApiService {
     }
   }
 
-  Future<List<SoldItem>> getSoldItems({
+  Future<gpreport?> getGPReport({
     required DateTime startDate,
     required DateTime endDate,
     required DatabaseLocation location,
@@ -127,48 +120,57 @@ class ApiService {
         'connectionString': location.dPath,
       };
 
-      final uri = Uri.parse('$baseUrl/itemsalesreport')
+      final uri = Uri.parse('$baseUrl/gpreport')
           .replace(queryParameters: queryParameters);
-
-      print('Request URL: $uri'); // Print the request URL
-      print('Request Parameters: $queryParameters'); // Print the parameters
 
       final response = await http.get(
         uri,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('Response Status Code: ${response.statusCode}'); // Print status code
-      print('Response Headers: ${response.headers}'); // Print headers
-      print('Response Body: ${response.body}'); // Print response body
-
       if (response.statusCode == 200 && response.body.isNotEmpty) {
-        final List<dynamic> itemsJson = json.decode(response.body) as List<dynamic>? ?? [];
-        return itemsJson
-            .map((json) => SoldItem.fromJson(json as Map<String, dynamic>))
-            .where((item) => item.itemId != 0) // Filter out invalid items
-            .toList();
+        // Parse the response body into JSON
+        final dynamic jsonResponse = json.decode(response.body);
+
+        // Handle both array and single object responses
+        final Map<String, dynamic> reportJson;
+        if (jsonResponse is List) {
+          // If response is an array, take the first item
+          if (jsonResponse.isNotEmpty) {
+            reportJson = Map<String, dynamic>.from(jsonResponse.first);
+          } else {
+            return null; // Return null if array is empty
+          }
+        } else if (jsonResponse is Map<String, dynamic>) {
+          // If response is already a single object
+          reportJson = jsonResponse;
+        } else {
+          throw Exception('Unexpected response format');
+        }
+
+        return gpreport.fromJson(reportJson);
       } else {
-        throw Exception('Failed to load sold items: ${response.statusCode}');
+        print('Failed to load GP report: ${response.statusCode}');
+        return null;
       }
     } catch (e) {
-      print('Exception Details: $e'); // Print exception details
-      throw Exception('Failed to load sold items: $e');
+      throw Exception('Failed to load GP report: $e');
     }
   }
 }
 
-class _SoldItemsReportState extends State<SoldItemsReport> {
+class _GPReportState extends State<GPReport> {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
   bool showReport = false;
-  List<SoldItem> reportItems = [];  // List to store items
-  double totalAmount = 0.0;  // Total amount variable
-  late final ApiService _apiService;
+  gpreport? reportData;
+
+
   List<DatabaseLocation> _locations = [];
   DatabaseLocation? _selectedLocation;
   bool _isLoadingLocations = true;
+  late final ApiService _apiService;
 
   Future<void> _loadLocations() async {
     try {
@@ -194,70 +196,6 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
     super.initState();
     _apiService = ApiService();
     _loadLocations();
-  }
-
-
-  Future<void> _generateReport() async {
-    if (fromDate == null || toDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select both dates')),
-      );
-      return;
-    }
-
-    if (_selectedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a location')),
-      );
-      return;
-    }
-
-    if (fromDate!.isAfter(toDate!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('From date must be before To date')),
-      );
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-      showReport = false;
-    });
-
-    try {
-      print('Calling API with dates: ${fromDate!.toIso8601String()} to ${toDate!.toIso8601String()}');
-      print('Selected location: ${_selectedLocation!.locationName}');
-
-      // Updated API call with named parameters
-      final items = await _apiService.getSoldItems(
-          startDate: fromDate!,
-          endDate: toDate!,
-          location: _selectedLocation!
-      );
-
-      print('Received ${items.length} items from API');
-
-      // Calculate total amount safely
-      double total = 0.0;
-      for (var item in items) {
-        total += item.lineTotal;
-      }
-
-      setState(() {
-        reportItems = items;
-        totalAmount = total;
-        showReport = true;
-      });
-    } catch (e) {
-      print('Error generating report: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
   }
 
   Widget _buildLocationDropdown() {
@@ -359,90 +297,57 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
     }
   }
 
-  Widget _buildReportTable(List<SoldItem> items) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Item ID')),
-            DataColumn(label: Text('Item Name')),
-            DataColumn(label: Text('Quantity')),
-            DataColumn(label: Text('Price')),
-            DataColumn(label: Text('Total')),
-          ],
-          rows: items.map((item) {
-            return DataRow(cells: [
-              DataCell(Text(item.itemId.toString())),
-              DataCell(Text(item.itemName)),
-              DataCell(Text(item.soldQuantity.toStringAsFixed(3))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.price))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.lineTotal))),
-            ]);
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReportView() {
-
-    if (!showReport || reportItems.isEmpty) {
-      return const Center(
-        child: Text('No data available for the selected period'),
+  Future<void> _generateReport() async {
+    if (fromDate == null || toDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select both dates')),
       );
+      return;
     }
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                Text(
-                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sold Report',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'From ${DateFormat('MM/dd/yyyy').format(fromDate!)} To ${DateFormat('MM/dd/yyyy').format(toDate!)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-          _buildReportTable(reportItems),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'Total Amount($currency): ${NumberFormat('#,##0.00').format(reportItems[0].totalSales)}',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a location')),
+      );
+      return;
+    }
+
+    if (fromDate!.isAfter(toDate!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('From date must be before To date')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      showReport = false;
+    });
+
+    try {
+      final data = await _apiService.getGPReport(
+        startDate: fromDate!,
+        endDate: toDate!,
+        location: _selectedLocation!,
+      );
+
+      setState(() {
+        reportData = data;
+        showReport = true;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<void> _generatePdf() async {
-    if (!showReport || reportItems.isEmpty) {
+    if (!showReport || reportData == null || _selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data available to generate PDF')),
       );
@@ -451,143 +356,105 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
 
     try {
       setState(() => isLoading = true);
+
       final pdf = pw.Document();
+      final formatter = NumberFormat("#,##0.00", "en_US");
+
+      // Load custom font
       final font = await PdfGoogleFonts.poppinsRegular();
       final boldFont = await PdfGoogleFonts.poppinsBold();
       final imageBytes = await rootBundle.load('assets/images/skynet_pro.jpg');
       final image = pw.MemoryImage(imageBytes.buffer.asUint8List());
 
-      // Split items into chunks for pagination
-      const int itemsPerPage = 35; // Adjust this number based on your needs
-      final chunks = <List<SoldItem>>[];
-      for (var i = 0; i < reportItems.length; i += itemsPerPage) {
-        chunks.add(
-          reportItems.skip(i).take(itemsPerPage).toList(),
-        );
-      }
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Container(
+              padding: const pw.EdgeInsets.all(20),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  pw.Center(
+                    child: pw.Column(
+                      children: [
+                        pw.Container(
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.start,
+                            children: [
+                              pw.Image(image, width: 120),
+                            ],
+                          ),
+                        ),
+                        pw.SizedBox(height: 10),
+                        pw.Text(
+                          '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} - Gross Profit Report',
+                          style: pw.TextStyle(
+                            font: boldFont,
+                            fontSize: 16,
+                          ),
+                        ),
+                        pw.SizedBox(height: 10),
+                        pw.Container(
+                          child: pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text(
+                                'From: ${DateFormat('MM/dd/yyyy').format(fromDate!)}',
+                                style: pw.TextStyle(font: font, fontSize: 12),
+                              ),
+                              pw.Text(
+                                'To: ${DateFormat('MM/dd/yyyy').format(toDate!)}',
+                                style: pw.TextStyle(font: font, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        pw.SizedBox(height: 7),
+                      ],
+                    ),
+                  ),
 
-      // Create pages
-      for (var i = 0; i < chunks.length; i++) {
-        pdf.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4.copyWith(
-              marginLeft: 10.0, // Reduced left margin
-              marginRight: 10.0, // Reduced right margin
-              marginTop: 10.0, // Reduced top margin
-              marginBottom: 10.0, // Reduced bottom margin
-            ),
-            build: (pw.Context context) {
-              return pw.Container(
-                padding: const pw.EdgeInsets.all(20),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    // Header
-                    if (i == 0) ...[
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.start,
-                        children: [
-                          pw.Image(image, width: 100),
-                        ],
-                      ),
-                      pw.SizedBox(height: 5),
-                      pw.Center(
-                        child: pw.Text(
-                          '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Item Sale Report',
-                          style: pw.TextStyle(font: boldFont, fontSize: 14),
+                  // Sales Table
+                  pw.Table(
+                    border: pw.TableBorder.all(width: 1),
+                    children: [
+                      _buildPdfTableRow('Description', 'Amount ($currency)', font, boldFont, isHeader: true),
+                      _buildPdfTableRow('Total Income', formatter.format(reportData!.totalIncome), font, boldFont),
+                      _buildPdfTableRow('Total Cost Of Sale', formatter.format(reportData!.totalPurchase), font, boldFont),
+                      _buildPdfTableRow('Total Expenses', formatter.format(reportData!.totalExpenses), font, boldFont),
+                      _buildPdfTableRow('Total GP', formatter.format(reportData!.gp), font, boldFont),
+                    ],
+                  ),
+
+                  // Footer
+                  pw.Spacer(),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text(
+                        'SKYNET Pro Powered By Ceylon Innovation',
+                        style: pw.TextStyle(
+                          font: font,
+                          fontSize: 10,
                         ),
                       ),
-                      pw.SizedBox(height: 5),
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text(
-                            'From: ${DateFormat('MM/dd/yyyy').format(fromDate!)}',
-                            style: pw.TextStyle(font: font, fontSize: 10),
-                          ),
-                          pw.Text(
-                            'To: ${DateFormat('MM/dd/yyyy').format(toDate!)}',
-                            style: pw.TextStyle(font: font, fontSize: 10),
-                          ),
-                        ],
-                      ),
-                      pw.SizedBox(height: 10),
-                    ],
-                    // Table
-                    pw.Expanded(
-                      child: pw.Table.fromTextArray(
-                        headers: ['Item ID', 'Item Name', 'Quantity', 'Price($currency)', 'Total($currency)'],
-                        data: chunks[i].map((item) => [
-                          item.itemId,
-                          item.itemName,
-                          item.soldQuantity.toStringAsFixed(3),
-                          NumberFormat('#,##0.00').format(item.price),
-                          NumberFormat('#,##0.00').format(item.lineTotal),
-                        ]).toList(),
-                        headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),  // Reduced font size
-                        cellStyle: pw.TextStyle(font: font, fontSize: 8),  // Reduced font size
-                        headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-                        cellHeight: 20,  // Reduced cell height
-                        columnWidths: {
-                          0: const pw.FlexColumnWidth(1),  // Item ID
-                          1: const pw.FlexColumnWidth(3),  // Item Name
-                          2: const pw.FlexColumnWidth(1),  // Quantity
-                          3: const pw.FlexColumnWidth(1),  // Price
-                          4: const pw.FlexColumnWidth(1),  // Total
-                        },
-                        cellAlignments: {
-                          0: pw.Alignment.centerLeft,
-                          1: pw.Alignment.centerLeft,
-                          2: pw.Alignment.centerRight,
-                          3: pw.Alignment.centerRight,
-                          4: pw.Alignment.centerRight,
-                        },
-                      ),
-                    ),
-
-                    // Footer - only show on last page
-                    if (i == chunks.length - 1) ...[
-                      pw.SizedBox(height: 10),
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.end,
-                        children: [
-                          pw.Text(
-                            'Total Amount($currency): ${NumberFormat("#,##0.00").format(reportItems[0].totalSales)}',
-                            style: pw.TextStyle(font: boldFont, fontSize: 10),
-                          ),
-                        ],
-                      ),
-                      pw.SizedBox(height: 10),
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text(
-                            'SKYNET Pro Powered By Ceylon Innovation',
-                            style: pw.TextStyle(font: font, fontSize: 8),
-                          ),
-                          pw.Text(
-                            'Report Generated at ${DateFormat('MM/dd/yyyy - h:mm a').format(DateTime.now())}',
-                            style: pw.TextStyle(font: font, fontSize: 8),
-                          ),
-                        ],
+                      pw.Text(
+                        'Report Generated at ${DateFormat('MM/dd/yyyy - h:mm a').format(DateTime.now())}',
+                        style: pw.TextStyle(
+                          font: font,
+                          fontSize: 10,
+                        ),
                       ),
                     ],
-                    // Page number
-                    pw.Positioned(
-                      bottom: 5,
-                      right: 5,
-                      child: pw.Text(
-                        'Page ${i + 1} of ${chunks.length}',
-                        style: pw.TextStyle(font: font, fontSize: 8),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      }
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
 
       if (kIsWeb) {
         // Check if running on mobile browser
@@ -604,7 +471,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           final anchor = html.AnchorElement()
             ..href = url
             ..style.display = 'none'
-            ..download = 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+            ..download = 'GP_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
           html.document.body!.children.add(anchor);
           anchor.click();
           html.document.body!.children.remove(anchor);
@@ -613,24 +480,137 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
           // For desktop web, use Printing package
           await Printing.layoutPdf(
             onLayout: (PdfPageFormat format) async => pdf.save(),
-            name: 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+            name: 'GP_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
           );
         }
       } else {
         // For native platforms, use Printing package
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'Items_Sale_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+          name: 'GP_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
         );
       }
+
     } catch (e) {
-      print('PDF Generation Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error generating PDF: $e')),
       );
     } finally {
       setState(() => isLoading = false);
     }
+  }
+
+
+  pw.TableRow _buildPdfTableRow(String label, String value, pw.Font font, pw.Font boldFont,
+      {bool isHeader = false, bool isTotal = false}) {
+    final style = pw.TextStyle(
+      font: isHeader || isTotal ? boldFont : font,
+      fontSize: 12,
+    );
+
+    return pw.TableRow(
+      children: [
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(8),
+          child: pw.Text(label, style: style),
+        ),
+        pw.Padding(
+          padding: const pw.EdgeInsets.all(8),
+          child: pw.Text(
+            value,
+            style: style,
+            textAlign: pw.TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReportView() {
+    if (!showReport || reportData == null || _selectedLocation == null) {
+      return const Center(
+        child: Text('No data available'),
+      );
+    }
+    final formatter = NumberFormat("#,##0.00", "en_US");
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} - Gross Profit Report',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'From ${DateFormat('MM/dd/yyyy').format(fromDate!)} To ${DateFormat('MM/dd/yyyy').format(toDate!)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+
+          // Report Table
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black),
+            ),
+            child: Column(
+              children: [
+                _buildReportRow('Description', currency ?? 'LKR', isBold: true),
+                _buildReportRow('Total Income', formatter.format(reportData!.totalIncome)),
+                _buildReportRow('Total Cost Of Sale', formatter.format(reportData!.totalPurchase)),
+                _buildReportRow('Total Expenses', formatter.format(reportData!.totalExpenses)),
+                _buildReportRow('Total GP', formatter.format(reportData!.gp)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReportRow(String description, String value, {bool isBold = false}) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.black),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                description,
+                style: GoogleFonts.poppins(
+                  fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -673,11 +653,11 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                 const SizedBox(height: 8), // Spacing between rows
                 // Second row with title
                 Text(
-                  'Sold Items',
+                  'Gross Profit Report',
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 24,
+                    fontSize: 20,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -713,7 +693,7 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                                 Text(
                                   fromDate != null
                                       ? DateFormat('yyyy-MM-dd')
-                                      .format(fromDate!)
+                                          .format(fromDate!)
                                       : 'Select Date',
                                   style: GoogleFonts.poppins(
                                       fontWeight: FontWeight.w600),
@@ -788,13 +768,13 @@ class _SoldItemsReportState extends State<SoldItemsReport> {
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                    'Generate',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                          'Generate',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
                 if (showReport) ...[
                   const SizedBox(height: 24),
