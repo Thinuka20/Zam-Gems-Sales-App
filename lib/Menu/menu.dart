@@ -168,7 +168,6 @@ class DashboardPage extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
               GetBuilder<LoginController>(
                 builder: (controller) {
                   if (controller.specialType != "Retail") {
@@ -218,7 +217,6 @@ class DashboardPage extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
                       ],
                     );
                   } else {
@@ -228,6 +226,7 @@ class DashboardPage extends StatelessWidget {
                   }
                 },
               ),
+              const SizedBox(height: 10),
               InkWell(
                 onTap: () {
                   Get.to(() => const ReportsMenu());
