@@ -74,7 +74,6 @@ class ApiService {
         'nationality': customerData['nationality'] ?? '',
         'roomId': int.parse(roomId),
         'email': customerData['email'] ?? '',
-
       };
 
       final response = await http.post(
@@ -93,7 +92,6 @@ class ApiService {
       throw e;
     }
   }
-
 }
 
 class CustomerCheckIn extends StatefulWidget {
@@ -145,8 +143,8 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
     try {
       await Future.wait([
         _loadCustomerData(),
-        _loadAvailableRooms(),
         _loadNationalities(),
+        _loadAvailableRooms(),
       ]);
     } catch (e) {
       _showError('Error loading initial data: $e');
@@ -158,7 +156,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
   Future<void> _loadCustomerData() async {
     try {
       final data = await _apiService.getCustomerData(widget.bookingId);
-      print('Customer data: $data');
       setState(() {
         firstNameController.text = (data['firstName'] ?? '').toString();
         lastNameController.text = (data['lastName'] ?? '').toString();
@@ -166,7 +163,8 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
         emailController.text = (data['email'] ?? '').toString();
         addressController.text = (data['address'] ?? '').toString();
         nicController.text = (data['nicNumber'] ?? '').toString();
-        selectedNationality = data['details1']?.toString();
+        final nationality = (data['details1'] ?? '').toString();
+        selectedNationality = nationality.isNotEmpty ? nationality : null;
         customerId = (data['customerId'] ?? '').toString();
       });
     } catch (e) {
@@ -177,7 +175,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
   Future<void> _loadAvailableRooms() async {
     try {
       final response = await _apiService.getAvailableRooms(widget.bookingId);
-      print('Parsed room data: $response');
 
       if (mounted) {
         setState(() {
@@ -400,7 +397,7 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                         decoration: _buildInputDecoration(
                             'Last Name', Icons.person_outline),
                         validator: (v) =>
-                        v?.isEmpty ?? true ? 'Required' : null,
+                            v?.isEmpty ?? true ? 'Required' : null,
                       ),
                     ),
                   ],
@@ -410,8 +407,7 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                   controller: phoneController,
                   decoration:
                       _buildInputDecoration('Phone', Icons.phone_outlined),
-                  validator: (v) =>
-                  v?.isEmpty ?? true ? 'Required' : null,
+                  validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -424,8 +420,7 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                   controller: addressController,
                   decoration: _buildInputDecoration(
                       'Address', Icons.location_on_outlined),
-                  validator: (v) =>
-                  v?.isEmpty ?? true ? 'Required' : null,
+                  validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
                   maxLines: 3,
                 ),
                 const SizedBox(height: 16),
@@ -433,22 +428,36 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                   controller: nicController,
                   decoration: _buildInputDecoration(
                       'NIC/Passport Number', Icons.badge_outlined),
-                  validator: (v) =>
-                  v?.isEmpty ?? true ? 'Required' : null,
+                  validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedNationality,
+                  value: selectedNationality?.isNotEmpty == true
+                      ? selectedNationality
+                      : null,
                   decoration:
                       _buildInputDecoration('Nationality', Icons.flag_outlined),
-                  items: nationalities.map((nationality) {
-                    return DropdownMenuItem<String>(
-                      value: nationality['name'],
-                      child: Text(nationality['name']),
-                    );
-                  }).toList(),
-                  onChanged: (v) => setState(() => selectedNationality = v),
-                  validator: (v) => v == null ? 'Required' : null,
+                  items: [
+                    if (nationalities.isEmpty)
+                      const DropdownMenuItem<String>(
+                        value: '',
+                        child: Text('Loading nationalities...'),
+                      ),
+                    ...nationalities.map((nationality) {
+                      final name = nationality['name']?.toString() ?? '';
+                      return DropdownMenuItem<String>(
+                        value: name,
+                        child: Text(name),
+                      );
+                    }).toList(),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => selectedNationality = value);
+                    }
+                  },
+                  validator: (value) =>
+                      (value == null || value.isEmpty) ? 'Required' : null,
                 ),
                 const SizedBox(height: 16),
                 // if (rooms.isNotEmpty)

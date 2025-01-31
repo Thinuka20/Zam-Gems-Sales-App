@@ -121,16 +121,12 @@ class ApiService {
       final uri = Uri.parse('$baseUrl/currentbookedrooms')
           .replace(queryParameters: queryParameters);
 
-      print('Request URL: $uri');
-      print('Request Parameters: $queryParameters');
 
       final response = await http.get(
         uri,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('Response Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         final List<dynamic> bookingsJson = json.decode(response.body);
