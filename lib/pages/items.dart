@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:genix_reports/widgets/user_activity_wrapper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
@@ -183,15 +184,12 @@ class ApiService {
                   CeylonAdaptor.fromJson(json as Map<String, dynamic>))
               .toList();
         } catch (e) {
-          print('Error parsing JSON response: $e');
           return [];
         }
       } else {
-        print('API Error: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('Network Error: $e');
       return [];
     }
   }
@@ -206,32 +204,26 @@ class ApiService {
       final uri = Uri.parse('$baseUrl/itemName')
           .replace(queryParameters: queryParameters);
 
-      print('Calling API with URI: $uri'); // Debug log
 
       final response = await http.get(
         uri,
         headers: {'Content-Type': 'application/json'},
       );
 
-      print('API Response Status Code: ${response.statusCode}'); // Debug log
-      print('API Response Body: ${response.body}'); // Debug log
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body) as Map<String, dynamic>;
         final itemName = data['itemName'] as String?;
 
         if (itemName == null || itemName.isEmpty) {
-          print('Item name is null or empty for ID: $itemId'); // Debug log
           return 'Item Not Found';
         }
 
         return itemName;
       } else {
-        print('API Error: ${response.statusCode} - ${response.body}'); // Debug log
         return 'Item Not Found (Error ${response.statusCode})';
       }
     } catch (e) {
-      print('Exception in getItemName: $e'); // Debug log
       return 'Error: $e';
     }
   }
@@ -306,7 +298,6 @@ class _ItemsState extends State<items> {
         _selectedLocation!.dPath,
       );
 
-      print('Retrieved item name: $name'); // Debug log
 
       // Then get the quantity
       final quantity = await _apiService.getAvailableStock(
@@ -314,7 +305,6 @@ class _ItemsState extends State<items> {
         _selectedLocation!.dPath,
       );
 
-      print('Retrieved quantity: $quantity'); // Debug log
 
       if (mounted) {
         setState(() {
@@ -325,7 +315,6 @@ class _ItemsState extends State<items> {
         });
       }
     } catch (e) {
-      print('Error in _checkAvailableQuantity: $e'); // Debug log
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -368,11 +357,6 @@ class _ItemsState extends State<items> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No data found for the selected item')),
         );
-      }
-      print('Item Flow Data:');
-      for (var item in data) {
-        print(
-            '${item.fieldI1},${item.itemid},${item.date},${item.type},${item.details},${item.credit},${item.debit},${item.fieldD3},${item.balance},${item.itemname}');
       }
       setState(() {
         itemFlowData = data;
@@ -652,7 +636,6 @@ class _ItemsState extends State<items> {
         );
       }
     } catch (e) {
-      print('PDF Generation Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error generating PDF: $e')),
       );
@@ -747,253 +730,255 @@ class _ItemsState extends State<items> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).primaryColor,
-          automaticallyImplyLeading: false,
-          toolbarHeight: 120,
-          flexibleSpace: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // First row with Back and Logout buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => Get.back(),
-                      icon: const Icon(Icons.arrow_back,
-                          color: Colors.white, size: 24),
-                      label: const Text(
-                        'Back',
-                        style: TextStyle(color: Colors.white, fontSize: 20),
+    return UserActivityWrapper(
+      child: SafeArea(
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).primaryColor,
+            automaticallyImplyLeading: false,
+            toolbarHeight: 120,
+            flexibleSpace: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // First row with Back and Logout buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.arrow_back,
+                            color: Colors.white, size: 24),
+                        label: const Text(
+                          'Back',
+                          style: TextStyle(color: Colors.white, fontSize: 20),
+                        ),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
                       ),
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.power_settings_new,
-                        color: Colors.white,
-                        size: 28,
+                      IconButton(
+                        icon: const Icon(
+                          Icons.power_settings_new,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: _handleLogout,
+                        tooltip: 'Logout',
                       ),
-                      onPressed: _handleLogout,
-                      tooltip: 'Logout',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8), // Spacing between rows
-                // Second row with title
-                Text(
-                  'Item Details',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 24,
+                    ],
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  const SizedBox(height: 8), // Spacing between rows
+                  // Second row with title
+                  Text(
+                    'Item Details',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 24,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        body: RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Location',
-                            style: GoogleFonts.poppins(color: Colors.grey[600])),
-                        const SizedBox(height: 8),
-                        _buildLocationDropdown(),
-                        const SizedBox(height: 16),
-                        Text('Item Code',
-                            style: GoogleFonts.poppins(color: Colors.grey[600])),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _itemCodeController,
-                          decoration: InputDecoration(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                  color: Theme.of(context).primaryColor),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: Theme.of(context).primaryColor,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Date Range Selection
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed:
-                            isLoadingQuantity ? null : _checkAvailableQuantity,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: isLoadingQuantity
-                            ? SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : Text(
-                                'Item Available Quantity',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: isLoadingFlow ? null : _loadItemFlow,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: isLoadingFlow
-                            ? SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : Text(
-                                'Item Flow',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (availableQuantity != null) ...[
-                  const SizedBox(height: 16),
+          body: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Item Details',
-                              style:
-                                  GoogleFonts.poppins(color: Colors.grey[600])),
+                          Text('Location',
+                              style: GoogleFonts.poppins(color: Colors.grey[600])),
                           const SizedBox(height: 8),
-                          Text(
-                            'Item Name: ${itemName ?? ""}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                          _buildLocationDropdown(),
+                          const SizedBox(height: 16),
+                          Text('Item Code',
+                              style: GoogleFonts.poppins(color: Colors.grey[600])),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _itemCodeController,
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                    color: Theme.of(context).primaryColor),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).primaryColor,
+                                  width: 2,
+                                ),
+                              ),
                             ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Text('Available Quantity',
-                              style:
-                                  GoogleFonts.poppins(color: Colors.grey[600])),
-                          const SizedBox(height: 8),
-                          Text(
-                            availableQuantity!.toStringAsFixed(3),
-                            style: GoogleFonts.poppins(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          const SizedBox(height: 16),
+                          // Date Range Selection
                         ],
                       ),
                     ),
                   ),
-                ],
-                if (showReport && itemFlowData != null) ...[
                   const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: isLoadingPdf ? null : _generatePdf,
-                    icon: isLoadingPdf
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                  Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed:
+                              isLoadingQuantity ? null : _checkAvailableQuantity,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          )
-                        : const Icon(Icons.picture_as_pdf, color: Colors.white),
-                    label: Text(
-                      isLoadingPdf ? 'Generating...' : 'Generate PDF',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                          ),
+                          child: isLoadingQuantity
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                        AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  'Item Available Quantity',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isLoadingFlow ? null : _loadItemFlow,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: isLoadingFlow
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                        AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  'Item Flow',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildItemFlowTable(),
+                  if (availableQuantity != null) ...[
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Item Details',
+                                style:
+                                    GoogleFonts.poppins(color: Colors.grey[600])),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Item Name: ${itemName ?? ""}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Available Quantity',
+                                style:
+                                    GoogleFonts.poppins(color: Colors.grey[600])),
+                            const SizedBox(height: 8),
+                            Text(
+                              availableQuantity!.toStringAsFixed(3),
+                              style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (showReport && itemFlowData != null) ...[
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: isLoadingPdf ? null : _generatePdf,
+                      icon: isLoadingPdf
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.picture_as_pdf, color: Colors.white),
+                      label: Text(
+                        isLoadingPdf ? 'Generating...' : 'Generate PDF',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildItemFlowTable(),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

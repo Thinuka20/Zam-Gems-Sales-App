@@ -6,6 +6,8 @@ import 'package:genix_reports/pages/solditemsreport.dart';
 import 'package:genix_reports/skynet_pro_backery/production_branchwise.dart';
 import 'package:genix_reports/skynet_pro_backery/production_itemwise.dart';
 import 'package:genix_reports/skynet_pro_backery/production_total.dart';
+import 'package:genix_reports/skynet_pro_hotel/banquetbookings.dart';
+import 'package:genix_reports/skynet_pro_hotel/roombookings.dart';
 import 'package:genix_reports/widgets/user_activity_wrapper.dart';
 import 'package:genix_reports/zam_gems/iteminvoices.dart';
 import 'package:genix_reports/zam_gems/solditemsreportZam.dart';
@@ -14,9 +16,9 @@ import 'package:get/get.dart';
 
 import '../controllers/login_controller.dart';
 
-class ProductionMenu extends StatelessWidget {
+class BookingsMenu extends StatelessWidget {
   // Renamed to ReportsMenu
-  const ProductionMenu({Key? key}) : super(key: key);
+  const BookingsMenu({Key? key}) : super(key: key);
 
   void _handleLogout() async {
     final loginController = Get.find<LoginController>();
@@ -64,7 +66,7 @@ class ProductionMenu extends StatelessWidget {
                   const SizedBox(height: 8), // Spacing between rows
                   // Second row with title
                   Text(
-                    'Production',
+                    'Bookings',
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -85,7 +87,7 @@ class ProductionMenu extends StatelessWidget {
                     InkWell(
                       onTap: () {
                         Get.to(() =>
-                            const totalProductionReport()); // Navigate to SalesReport
+                            const CurrentRoomBookings()); // Navigate to SalesReport
                       },
                       child: Card(
                         color: Colors.white,
@@ -97,13 +99,13 @@ class ProductionMenu extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.picture_as_pdf_rounded,
+                                Icons.hotel_rounded,
                                 color: Theme.of(context).primaryColor,
                                 size: 40,
                               ),
                               const SizedBox(width: 16),
                               Text(
-                                'Total Production Issue',
+                                'Rooms',
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 20,
@@ -120,7 +122,7 @@ class ProductionMenu extends StatelessWidget {
                     InkWell(
                       onTap: () {
                         Get.to(() =>
-                        const itemwiseProductionReport()); // Navigate to SalesReport
+                        const CurrentBanquetBookings()); // Navigate to SalesReport
                       },
                       child: Card(
                         color: Colors.white,
@@ -132,48 +134,13 @@ class ProductionMenu extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.picture_as_pdf_rounded,
+                                Icons.home_work_sharp,
                                 color: Theme.of(context).primaryColor,
                                 size: 40,
                               ),
                               const SizedBox(width: 16),
                               Text(
-                                'Item Wise Production',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 20,
-                                ),
-                              ),
-                              const Spacer(),
-                              const Icon(Icons.arrow_forward_ios),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    InkWell(
-                      onTap: () {
-                        Get.to(() =>
-                        const productionBranch()); // Navigate to SalesReport
-                      },
-                      child: Card(
-                        color: Colors.white,
-                        child: Container(
-                          height: 80,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.picture_as_pdf_rounded,
-                                color: Theme.of(context).primaryColor,
-                                size: 40,
-                              ),
-                              const SizedBox(width: 16),
-                              Text(
-                                'Branch Wise Production',
+                                'Banquet',
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 20,

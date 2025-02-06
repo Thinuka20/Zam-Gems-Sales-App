@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:genix_reports/pages/salesreport.dart';
+import 'package:genix_reports/widgets/user_activity_wrapper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
@@ -133,156 +134,158 @@ class _BilldetailsState extends State<Billdetails> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).primaryColor,
-          automaticallyImplyLeading: false,
-          toolbarHeight: 120,
-          flexibleSpace: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // First row with Back and Logout buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => Get.back(),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-                      label: const Text(
-                        'Back',
-                        style: TextStyle(color: Colors.white, fontSize: 20),
-                      ),
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.power_settings_new,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      onPressed: _handleLogout,
-                      tooltip: 'Logout',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8), // Spacing between rows
-                // Second row with title
-                Text(
-                  'Bill Details',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 24,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-        body: RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(), // Enable scrolling even when content is small
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Card(
-                        child: InkWell(
-                          onTap: () => _selectDate(context, true),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'From Date',
-                                  style: GoogleFonts.poppins(
-                                      color: Colors.grey[600]),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  fromDate != null
-                                      ? DateFormat('yyyy-MM-dd').format(fromDate!)
-                                      : 'Select Date',
-                                  style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
+    return UserActivityWrapper(
+      child: SafeArea(
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).primaryColor,
+            automaticallyImplyLeading: false,
+            toolbarHeight: 120,
+            flexibleSpace: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // First row with Back and Logout buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                        label: const Text(
+                          'Back',
+                          style: TextStyle(color: Colors.white, fontSize: 20),
                         ),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Card(
-                        child: InkWell(
-                          onTap: () => _selectDate(context, false),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'To Date',
-                                  style: GoogleFonts.poppins(
-                                      color: Colors.grey[600]),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  toDate != null
-                                      ? DateFormat('yyyy-MM-dd').format(toDate!)
-                                      : 'Select Date',
-                                  style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.power_settings_new,
+                          color: Colors.white,
+                          size: 28,
                         ),
+                        onPressed: _handleLogout,
+                        tooltip: 'Logout',
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: isLoading ? null : _generateReport,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    ],
                   ),
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                    'Generate',
+                  const SizedBox(height: 8), // Spacing between rows
+                  // Second row with title
+                  Text(
+                    'Bill Details',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
                       color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 24,
                     ),
-                  ),
-                ),
-                if (showReport) ...[
-                  BillDetailsCharts(
-                    fromDate: fromDate!,
-                    toDate: toDate!,
-                    connectionString: '$datasource',
+                    textAlign: TextAlign.center,
                   ),
                 ],
-                // Add a SizedBox to ensure there's always scrollable space
-                SizedBox(height: MediaQuery.of(context).size.height * 0.1),
-              ],
+              ),
+            ),
+          ),
+          body: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(), // Enable scrolling even when content is small
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Card(
+                          child: InkWell(
+                            onTap: () => _selectDate(context, true),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'From Date',
+                                    style: GoogleFonts.poppins(
+                                        color: Colors.grey[600]),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    fromDate != null
+                                        ? DateFormat('yyyy-MM-dd').format(fromDate!)
+                                        : 'Select Date',
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Card(
+                          child: InkWell(
+                            onTap: () => _selectDate(context, false),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'To Date',
+                                    style: GoogleFonts.poppins(
+                                        color: Colors.grey[600]),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    toDate != null
+                                        ? DateFormat('yyyy-MM-dd').format(toDate!)
+                                        : 'Select Date',
+                                    style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: isLoading ? null : _generateReport,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(
+                      'Generate',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  if (showReport) ...[
+                    BillDetailsCharts(
+                      fromDate: fromDate!,
+                      toDate: toDate!,
+                      connectionString: '$datasource',
+                    ),
+                  ],
+                  // Add a SizedBox to ensure there's always scrollable space
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+                ],
+              ),
             ),
           ),
         ),
@@ -428,7 +431,6 @@ class _BillDetailsChartsState extends State<BillDetailsCharts> {
       _errorLocation = errorMessage;
       _isLoadingLocation = false;
     });
-    print('Location Error: $errorMessage');
   }
 
   void _handleDateWiseError(String errorMessage) {
@@ -436,7 +438,6 @@ class _BillDetailsChartsState extends State<BillDetailsCharts> {
       _errorDateWise = errorMessage;
       _isLoadingDateWise = false;
     });
-    print('Date-wise Error: $errorMessage');
   }
 
   List<PieSection> _getPieSections() {
