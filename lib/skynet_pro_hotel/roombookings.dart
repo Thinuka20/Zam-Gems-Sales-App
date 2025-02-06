@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:genix_reports/skynet_pro_hotel/customerchecking.dart';
+import 'package:genix_reports/widgets/user_activity_wrapper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
@@ -75,11 +76,11 @@ class CurrentBookedRoom {
   }
 }
 
-class CurrentBookings extends StatefulWidget {
-  const CurrentBookings({super.key});
+class CurrentRoomBookings extends StatefulWidget {
+  const CurrentRoomBookings({super.key});
 
   @override
-  State<CurrentBookings> createState() => _CurrentBookingsState();
+  State<CurrentRoomBookings> createState() => _CurrentRoomBookingsState();
 }
 
 class ApiService {
@@ -138,13 +139,12 @@ class ApiService {
         throw Exception('Failed to load bookings: ${response.statusCode}');
       }
     } catch (e) {
-      print('Exception Details: $e');
       throw Exception('Failed to load bookings: $e');
     }
   }
 }
 
-class _CurrentBookingsState extends State<CurrentBookings> {
+class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
   DateTime selectedDate = DateTime.now();
   bool isLoading = false;
   List<CurrentBookedRoom> bookings = [];
@@ -236,6 +236,10 @@ class _CurrentBookingsState extends State<CurrentBookings> {
       default:
         return Colors.grey[100]!;
     }
+  }
+
+  Future<void> _onRefresh() async {
+      await _generateData();
   }
 
   void _handleLogout() async {
@@ -385,223 +389,228 @@ class _CurrentBookingsState extends State<CurrentBookings> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        automaticallyImplyLeading: false,
-        toolbarHeight: 120,
-        flexibleSpace: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // First row with Back and Logout buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 24),
-                    label: const Text(
-                      'Back',
-                      style: TextStyle(color: Colors.white, fontSize: 20),
+    return UserActivityWrapper(
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).primaryColor,
+          automaticallyImplyLeading: false,
+          toolbarHeight: 120,
+          flexibleSpace: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // First row with Back and Logout buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 24),
+                      label: const Text(
+                        'Back',
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     ),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.power_settings_new,
-                      color: Colors.white,
-                      size: 28,
+                    IconButton(
+                      icon: const Icon(
+                        Icons.power_settings_new,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: _handleLogout,
+                      tooltip: 'Logout',
                     ),
-                    onPressed: _handleLogout,
-                    tooltip: 'Logout',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8), // Spacing between rows
-              // Second row with title
-              Text(
-                'Current Bookings',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 24,
+                  ],
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                const SizedBox(height: 8), // Spacing between rows
+                // Second row with title
+                Text(
+                  'Room` Bookings',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 24,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Card(
-              child: InkWell(
-                onTap: () async {
-                  final DateTime? picked = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: Color(0xFF2A2359),
-                            onPrimary: Colors.white,
-                            onSurface: Colors.black,
-                          ),
-                        ),
-                        child: child!,
+        body: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Card(
+                  child: InkWell(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.light(
+                                primary: Color(0xFF2A2359),
+                                onPrimary: Colors.white,
+                                onSurface: Colors.black,
+                              ),
+                            ),
+                            child: child!,
+                          );
+                        },
                       );
+                      if (picked != null) {
+                        setState(() {
+                          selectedDate = picked;
+                        });
+                        if (showCards) {
+                          _fetchBookings();
+                        }
+                      }
                     },
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      selectedDate = picked;
-                    });
-                    if (showCards) {
-                      _fetchBookings();
-                    }
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Selected Date',
-                        style: GoogleFonts.poppins(color: Colors.grey[600]),
-                      ),
-                      Text(
-                        DateFormat('yyyy-MM-dd').format(selectedDate),
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Location',
-                      style: GoogleFonts.poppins(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildLocationDropdown(),
-                  ],
-                ),
-              ),
-            ),
-            if (!showCards)
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 2,
-                  ),
-                  onPressed: _generateData,
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Selected Date',
+                            style: GoogleFonts.poppins(color: Colors.grey[600]),
                           ),
-                        )
-                      : Text(
-                          'View Bookings',
+                          Text(
+                            DateFormat('yyyy-MM-dd').format(selectedDate),
+                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Location',
                           style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[600],
                           ),
                         ),
-                ),
-              ),
-            if (showCards) ...[
-              if (showNavigationButtons)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _navigateDate(-1),
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        label: Text(
-                          'Previous Day',
-                          style: GoogleFonts.poppins(color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 2,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
+                        const SizedBox(height: 8),
+                        _buildLocationDropdown(),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _navigateDate(1),
-                        icon: const Icon(Icons.arrow_forward,
-                            color: Colors.white),
-                        label: Text(
-                          'Next Day',
-                          style: GoogleFonts.poppins(color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 2,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : GridView.builder(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 1,
-                          childAspectRatio: 1.8,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
+                if (!showCards)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        itemCount: allRooms.length,
-                        itemBuilder: (context, index) =>
-                            _buildRoomCard(allRooms[index]),
+                        elevation: 2,
                       ),
-              ),
-            ],
-          ],
+                      onPressed: _generateData,
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'View Bookings',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                    ),
+                  ),
+                if (showCards) ...[
+                  if (showNavigationButtons)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _navigateDate(-1),
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            label: Text(
+                              'Previous Day',
+                              style: GoogleFonts.poppins(color: Colors.white),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 2,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _navigateDate(1),
+                            icon: const Icon(Icons.arrow_forward,
+                                color: Colors.white),
+                            label: Text(
+                              'Next Day',
+                              style: GoogleFonts.poppins(color: Colors.white),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 2,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : GridView.builder(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 1,
+                              childAspectRatio: 1.8,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                            ),
+                            itemCount: allRooms.length,
+                            itemBuilder: (context, index) =>
+                                _buildRoomCard(allRooms[index]),
+                          ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

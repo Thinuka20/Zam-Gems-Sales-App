@@ -55,13 +55,6 @@ class ApiService {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onError: (error, handler) async {
-        if (kDebugMode) {
-          print('API Error: ${error.message}');
-          print('Error type: ${error.type}');
-          print('Error response: ${error.response?.data}');
-          print('Error status code: ${error.response?.statusCode}');
-        }
-
         // Handle web-specific CORS errors
         if (kIsWeb && error.type == DioExceptionType.badResponse) {
           if (error.response?.statusCode == 0) {
@@ -80,11 +73,6 @@ class ApiService {
       },
       onRequest: (request, handler) async {
         final hasConnection = await checkConnection();
-        if (kDebugMode) {
-          print('Connection check result: $hasConnection');
-          print('API Request: ${request.uri}');
-          print('Request headers: ${request.headers}');
-        }
 
         if (!hasConnection) {
           return handler.reject(
@@ -98,10 +86,6 @@ class ApiService {
         return handler.next(request);
       },
       onResponse: (response, handler) {
-        if (kDebugMode) {
-          print('API Response: ${response.statusCode}');
-          print('Response data: ${response.data}');
-        }
         return handler.next(response);
       },
     ));
@@ -117,9 +101,6 @@ class ApiService {
 
       final connectivityResult = await connectivity.checkConnectivity();
       if (connectivityResult == ConnectivityResult.none) {
-        if (kDebugMode) {
-          print('No connectivity detected');
-        }
         return false;
       }
 
@@ -128,10 +109,6 @@ class ApiService {
         ..options.validateStatus = (status) {
           return status != null && status < 500;
         };
-
-      if (kDebugMode) {
-        print('Attempting to connect to server...');
-      }
 
       final response = await testDio.head(
         'http://124.43.70.220:7072/Reports',
@@ -144,29 +121,14 @@ class ApiService {
         ),
       );
 
-      if (kDebugMode) {
-        print('Server response status: ${response.statusCode}');
-      }
-
       return true;
     } catch (e) {
-      if (kDebugMode) {
-        print('Connection check error: $e');
-        if (e is DioException) {
-          print('DioError type: ${e.type}');
-          print('DioError message: ${e.message}');
-          print('DioError response: ${e.response}');
-        }
-      }
       return false;
     }
   }
 
   Future<Map<String, dynamic>> login(String password, String username) async {
     try {
-      if (kDebugMode) {
-        print('Attempting login with username: $username');
-      }
 
       final response = await _dio.post(
         '/login',
@@ -176,10 +138,6 @@ class ApiService {
         },
       );
 
-      if (kDebugMode) {
-        print('Raw Response: ${response.data}');
-      }
-
       if (response.data is Map<String, dynamic>) {
         return response.data;
       } else if (response.data is String) {
@@ -188,16 +146,8 @@ class ApiService {
         throw Exception('Unexpected response format');
       }
     } on DioException catch (e) {
-      if (kDebugMode) {
-        print('Login error: ${e.message}');
-        print('Error type: ${e.type}');
-        print('Error response: ${e.response?.data}');
-      }
       throw _handleDioError(e);
     } catch (e) {
-      if (kDebugMode) {
-        print('Unexpected error during login: $e');
-      }
       throw Exception('Network error: $e');
     }
   }
@@ -219,13 +169,13 @@ class ApiService {
       case DioExceptionType.badResponse:
         switch (error.response?.statusCode) {
           case 400:
-            return 'Invalid credentials';
+            return 'Error 400: Invalid credentials';
           case 401:
-            return 'Unauthorized access';
+            return 'Error 401: Unauthorized access';
           case 404:
-            return 'Service not found';
+            return 'Error 404: Service not found';
           case 500:
-            return 'Server error occurred. Please try again later.';
+            return 'Error 500: Server error occurred. Please try again later.';
           default:
             return 'Server error occurred';
         }
@@ -325,14 +275,8 @@ class LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      if (kDebugMode) {
-        print('Checking connection...');
-      }
 
       if (!await _apiService.checkConnection()) {
-        if (kDebugMode) {
-          print('Connection check failed');
-        }
         throw Exception('No internet connection available');
       }
 
@@ -342,11 +286,6 @@ class LoginPageState extends State<LoginPage> {
       final response = await _apiService.login(password, username);
       final loginController = Get.put(LoginController(), permanent: true);
       loginController.setLoginData(response);
-
-      // Print stored data
-      if (kDebugMode) {
-        print('Stored Login Data: ${loginController.loginData}');
-      }
 
       if (mounted) {
         Get.offAll(() => const DashboardPage());

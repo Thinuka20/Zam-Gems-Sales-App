@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:genix_reports/widgets/user_activity_wrapper.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -34,14 +35,11 @@ class ApiService {
             .replace(queryParameters: {'connectionString': connectionString}),
       );
 
-      print('Room Response: ${response.body}');
-
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }
       throw Exception('Failed to load rooms: ${response.statusCode}');
     } catch (e) {
-      print('Error loading rooms: $e');
       throw Exception('Error loading rooms: $e');
     }
   }
@@ -84,11 +82,9 @@ class ApiService {
       );
 
       if (response.statusCode != 200) {
-        print('Response body: ${response.body}');
         throw Exception('Failed to complete check-in: ${response.body}');
       }
     } catch (e) {
-      print('CheckIn error: $e');
       throw e;
     }
   }
@@ -302,204 +298,204 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        automaticallyImplyLeading: false,
-        toolbarHeight: 120,
-        flexibleSpace: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // First row with Back and Logout buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => Get.back(),
-                    icon: const Icon(Icons.arrow_back,
-                        color: Colors.white, size: 24),
-                    label: const Text(
-                      'Back',
-                      style: TextStyle(color: Colors.white, fontSize: 20),
+    return UserActivityWrapper(
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).primaryColor,
+          automaticallyImplyLeading: false,
+          toolbarHeight: 120,
+          flexibleSpace: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // First row with Back and Logout buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.arrow_back,
+                          color: Colors.white, size: 24),
+                      label: const Text(
+                        'Back',
+                        style: TextStyle(color: Colors.white, fontSize: 20),
+                      ),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     ),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.power_settings_new,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      onPressed: _handleLogout,
+                      tooltip: 'Logout',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8), // Spacing between rows
+                // Second row with title
+                Text(
+                  'Customer CheckIn',
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 24,
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.power_settings_new,
-                      color: Colors.white,
-                      size: 28,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Theme.of(context).primaryColor.withOpacity(0.05),
+                Colors.white
+              ],
+            ),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Guest Information',
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
                     ),
-                    onPressed: _handleLogout,
-                    tooltip: 'Logout',
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: firstNameController,
+                          decoration: _buildInputDecoration(
+                              'First Name', Icons.person_outline),
+                          validator: (v) =>
+                              v?.isEmpty ?? true ? 'Required' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: lastNameController,
+                          decoration: _buildInputDecoration(
+                              'Last Name', Icons.person_outline),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: phoneController,
+                    decoration:
+                        _buildInputDecoration('Phone', Icons.phone_outlined),
+                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: emailController,
+                    decoration:
+                        _buildInputDecoration('Email', Icons.email_outlined),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: addressController,
+                    decoration: _buildInputDecoration(
+                        'Address', Icons.location_on_outlined),
+                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: nicController,
+                    decoration: _buildInputDecoration(
+                        'NIC/Passport Number', Icons.badge_outlined),
+                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedNationality?.isNotEmpty == true
+                        ? selectedNationality
+                        : null,
+                    decoration:
+                        _buildInputDecoration('Nationality', Icons.flag_outlined),
+                    items: [
+                      if (nationalities.isEmpty)
+                        const DropdownMenuItem<String>(
+                          value: '',
+                          child: Text('Loading nationalities...'),
+                        ),
+                      ...nationalities.map((nationality) {
+                        final name = nationality['name']?.toString() ?? '';
+                        return DropdownMenuItem<String>(
+                          value: name,
+                          child: Text(name),
+                        );
+                      }).toList(),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => selectedNationality = value);
+                      }
+                    },
+                    validator: (value) =>
+                        (value == null || value.isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  // if (rooms.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    value: selectedRoom,
+                    decoration: _buildInputDecoration(
+                        'Room', Icons.meeting_room_outlined),
+                    items: rooms.map((room) {
+                      return DropdownMenuItem<String>(
+                        value: room['roomId'].toString(),
+                        child: Text(
+                            'Room ${room['roomType']} ${room['roomNumber']} | ${room['roomType']} | ${room['roomFloor']}'),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setState(() => selectedRoom = v),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : _handleCheckIn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              'Complete Check-In',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8), // Spacing between rows
-              // Second row with title
-              Text(
-                'Customer CheckIn',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 24,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).primaryColor.withOpacity(0.05),
-              Colors.white
-            ],
-          ),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Guest Information',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: firstNameController,
-                        decoration: _buildInputDecoration(
-                            'First Name', Icons.person_outline),
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: lastNameController,
-                        decoration: _buildInputDecoration(
-                            'Last Name', Icons.person_outline),
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: phoneController,
-                  decoration:
-                      _buildInputDecoration('Phone', Icons.phone_outlined),
-                  validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: emailController,
-                  decoration:
-                      _buildInputDecoration('Email', Icons.email_outlined),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: addressController,
-                  decoration: _buildInputDecoration(
-                      'Address', Icons.location_on_outlined),
-                  validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: nicController,
-                  decoration: _buildInputDecoration(
-                      'NIC/Passport Number', Icons.badge_outlined),
-                  validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedNationality?.isNotEmpty == true
-                      ? selectedNationality
-                      : null,
-                  decoration:
-                      _buildInputDecoration('Nationality', Icons.flag_outlined),
-                  items: [
-                    if (nationalities.isEmpty)
-                      const DropdownMenuItem<String>(
-                        value: '',
-                        child: Text('Loading nationalities...'),
-                      ),
-                    ...nationalities.map((nationality) {
-                      final name = nationality['name']?.toString() ?? '';
-                      return DropdownMenuItem<String>(
-                        value: name,
-                        child: Text(name),
-                      );
-                    }).toList(),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => selectedNationality = value);
-                    }
-                  },
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                // if (rooms.isNotEmpty)
-                DropdownButtonFormField<String>(
-                  value: selectedRoom,
-                  decoration: _buildInputDecoration(
-                      'Room', Icons.meeting_room_outlined),
-                  items: rooms.map((room) {
-                    return DropdownMenuItem<String>(
-                      value: room['roomId'].toString(),
-                      child: Text(
-                          'Room ${room['roomType']} ${room['roomNumber']} | ${room['roomType']} | ${room['roomFloor']}'),
-                    );
-                  }).toList(),
-                  onChanged: (v) => setState(() => selectedRoom = v),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : _handleCheckIn,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : Text(
-                            'Complete Check-In',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
             ),
           ),
         ),

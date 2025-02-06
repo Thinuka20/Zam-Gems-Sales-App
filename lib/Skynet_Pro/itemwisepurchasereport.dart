@@ -49,58 +49,52 @@ class DatabaseLocation {
   }
 }
 
-class Dailysales {
-  final String date;
-  final double totalSale;
-  final double totalCash;
-  final double totalCard;
-  final double totalCheque;
-  final double totalCredit;
-  final double totalBank;
+class ItemwisePurchase {
+  final int storeItemId;
+  final String itemName;
+  final String? storeType;
+  final double freeQuantity;
+  final double purchasedQuantity;
+  final double totalPurchaseAmount;
+  final String supplierNames;
 
-  Dailysales({
-    required this.date,
-    required this.totalSale,
-    required this.totalCash,
-    required this.totalCard,
-    required this.totalCheque,
-    required this.totalCredit,
-    required this.totalBank,
+  ItemwisePurchase({
+    required this.storeItemId,
+    required this.itemName,
+    this.storeType,
+    required this.freeQuantity,
+    required this.purchasedQuantity,
+    required this.totalPurchaseAmount,
+    required this.supplierNames,
   });
 
-  factory Dailysales.fromJson(Map<String, dynamic> json) {
-    return Dailysales(
-      date: json['date'] as String? ?? 'Unknown Item',
-      totalSale: (json['totalSale'] as num?)?.toDouble() ?? 0.0,
-      totalCash: (json['totalCash'] as num?)?.toDouble() ?? 0.0,
-      totalCard: (json['totalCard'] as num?)?.toDouble() ?? 0.0,
-      totalCheque: (json['totalCheque'] as num?)?.toDouble() ?? 0.0,
-      totalCredit: (json['totalCredit'] as num?)?.toDouble() ?? 0.0,
-      totalBank: (json['totalBank'] as num?)?.toDouble() ?? 0.0,
+  factory ItemwisePurchase.fromJson(Map<String, dynamic> json) {
+    return ItemwisePurchase(
+      storeItemId: json['storeItemId'] as int,
+      itemName: json['itemName'] as String,
+      storeType: json['storeType'] as String?,
+      freeQuantity: (json['freeQuantity'] as num).toDouble(),
+      purchasedQuantity: (json['purchasedQuantity'] as num).toDouble(),
+      totalPurchaseAmount: (json['totalPurchaseAmount'] as num).toDouble(),
+      supplierNames: json['supplierNames'] as String,
     );
   }
 }
 
-class DailysalesReport extends StatefulWidget {
-  // Renamed to SoldItemsReport
-  const DailysalesReport({super.key});
+class ItemwisePurchaseReport extends StatefulWidget {
+  const ItemwisePurchaseReport({super.key});
 
   @override
-  State<DailysalesReport> createState() => _DailysalesReportState();
+  State<ItemwisePurchaseReport> createState() => _ItemwisePurchaseReportState();
 }
 
 class ApiService {
   static const String baseUrl = 'http://124.43.70.220:7072/Reports';
 
-  ApiService();
-
   Future<List<DatabaseLocation>> getLocations() async {
     try {
       final queryParameters = {'connectionString': datasource};
-
-      final uri = Uri.parse('$baseUrl/locations')
-          .replace(queryParameters: queryParameters);
-
+      final uri = Uri.parse('$baseUrl/locations').replace(queryParameters: queryParameters);
       final response = await http.get(
         uri,
         headers: {'Content-Type': 'application/json'},
@@ -108,9 +102,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List<dynamic> locationsJson = json.decode(response.body);
-        return locationsJson
-            .map((json) => DatabaseLocation.fromJson(json))
-            .toList();
+        return locationsJson.map((json) => DatabaseLocation.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load locations: ${response.statusCode}');
       }
@@ -119,7 +111,7 @@ class ApiService {
     }
   }
 
-  Future<List<Dailysales>> getDailySales({
+  Future<List<ItemwisePurchase>> getItemwisePurchases({
     required DateTime startDate,
     required DateTime endDate,
     required DatabaseLocation location,
@@ -131,7 +123,7 @@ class ApiService {
         'connectionString': location.dPath,
       };
 
-      final uri = Uri.parse('$baseUrl/datewiseSales')
+      final uri = Uri.parse('$baseUrl/itemwise-purchases')
           .replace(queryParameters: queryParameters);
 
       final response = await http.get(
@@ -140,31 +132,37 @@ class ApiService {
       );
 
       if (response.statusCode == 200 && response.body.isNotEmpty) {
-        final List<dynamic> itemsJson = json.decode(response.body) as List<dynamic>? ?? [];
+        final List<dynamic> itemsJson = json.decode(response.body);
         return itemsJson
-            .map((json) => Dailysales.fromJson(json as Map<String, dynamic>))
-            .where((item) => item.date != '') // Filter out invalid items
+            .map((json) => ItemwisePurchase.fromJson(json))
             .toList();
       } else {
-        throw Exception('Failed to load sold items: ${response.statusCode}');
+        throw Exception('Failed to load purchases: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to load sold items: $e');
+      throw Exception('Failed to load purchases: $e');
     }
   }
 }
 
-class _DailysalesReportState extends State<DailysalesReport> {
+class _ItemwisePurchaseReportState extends State<ItemwisePurchaseReport> {
   DateTime? fromDate;
   DateTime? toDate;
   bool isLoading = false;
   bool showReport = false;
-  List<Dailysales> salesummary = [];  // List to store items
-  double totalAmount = 0.0;  // Total amount variable
+  List<ItemwisePurchase> purchases = [];
+  double totalPurchaseAmount = 0.0;
   late final ApiService _apiService;
   List<DatabaseLocation> _locations = [];
   DatabaseLocation? _selectedLocation;
   bool _isLoadingLocations = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _apiService = ApiService();
+    _loadLocations();
+  }
 
   Future<void> _loadLocations() async {
     try {
@@ -177,7 +175,6 @@ class _DailysalesReportState extends State<DailysalesReport> {
     } catch (e) {
       setState(() => _isLoadingLocations = false);
       if (mounted) {
-        // Check if widget is still mounted
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading locations: $e')),
         );
@@ -185,32 +182,10 @@ class _DailysalesReportState extends State<DailysalesReport> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _apiService = ApiService();
-    _loadLocations();
-  }
-
-
   Future<void> _generateReport() async {
-    if (fromDate == null || toDate == null) {
+    if (fromDate == null || toDate == null || _selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select both dates')),
-      );
-      return;
-    }
-
-    if (_selectedLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a location')),
-      );
-      return;
-    }
-
-    if (fromDate!.isAfter(toDate!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('From date must be before To date')),
+        const SnackBar(content: Text('Please select both dates and a location')),
       );
       return;
     }
@@ -221,23 +196,17 @@ class _DailysalesReportState extends State<DailysalesReport> {
     });
 
     try {
-
-      // Updated API call with named parameters
-      final items = await _apiService.getDailySales(
-          startDate: fromDate!,
-          endDate: toDate!,
-          location: _selectedLocation!
+      final items = await _apiService.getItemwisePurchases(
+        startDate: fromDate!,
+        endDate: toDate!,
+        location: _selectedLocation!,
       );
 
-      // Calculate total amount safely
-      double total = 0.0;
-      for (var item in items) {
-        total += item.totalSale;
-      }
+      double total = items.fold(0.0, (sum, item) => sum + item.totalPurchaseAmount);
 
       setState(() {
-        salesummary = items;
-        totalAmount = total;
+        purchases = items;
+        totalPurchaseAmount = total;
         showReport = true;
       });
     } catch (e) {
@@ -251,106 +220,7 @@ class _DailysalesReportState extends State<DailysalesReport> {
     }
   }
 
-  Widget _buildLocationDropdown() {
-    return DropdownButtonFormField<DatabaseLocation>(
-      value: _selectedLocation,
-      dropdownColor: Colors.white,
-      icon: Icon(
-        Icons.arrow_drop_down,
-        color: Theme.of(context).primaryColor,
-      ),
-      decoration: InputDecoration(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(context).primaryColor,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Colors.grey[300]!,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(context).primaryColor,
-            width: 2,
-          ),
-        ),
-      ),
-      items: _locations.map((location) {
-        return DropdownMenuItem<DatabaseLocation>(
-          value: location,
-          child: Text(
-            "${location.locationName}-${location.bLocationName}",
-            style: GoogleFonts.poppins(
-              color: const Color(0xFF2A2359),
-            ),
-          ),
-        );
-      }).toList(),
-      onChanged: (DatabaseLocation? newValue) {
-        setState(() {
-          _selectedLocation = newValue;
-        });
-      },
-    );
-  }
-
-  void _handleLogout() async {
-    final loginController = Get.find<LoginController>();
-    await loginController.clearLoginData();
-  }
-
-  Future<void> _onRefresh() async {
-    if (fromDate != null && toDate != null) {
-      await _generateReport();
-    }
-  }
-
-  Future<void> _selectDate(BuildContext context, bool isFromDate) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF2A2359),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF2A2359),
-              ),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isFromDate) {
-          fromDate = picked;
-        } else {
-          toDate = picked;
-        }
-      });
-    }
-  }
-
-  Widget _buildReportTable(List<Dailysales> items) {
+  Widget _buildReportTable(List<ItemwisePurchase> items) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.black),
@@ -360,23 +230,23 @@ class _DailysalesReportState extends State<DailysalesReport> {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: const [
-            DataColumn(label: Text('Date')),
-            DataColumn(label: Text('Total Sale')),
-            DataColumn(label: Text('Cash')),
-            DataColumn(label: Text('Card')),
-            DataColumn(label: Text('Cheque')),
-            DataColumn(label: Text('Credit')),
-            DataColumn(label: Text('Bank')),
+            DataColumn(label: Text('Item ID')),
+            DataColumn(label: Text('Item Name')),
+            DataColumn(label: Text('Store Type')),
+            DataColumn(label: Text('Free Qty')),
+            DataColumn(label: Text('Purchased Qty')),
+            DataColumn(label: Text('Total Amount')),
+            DataColumn(label: Text('Suppliers')),
           ],
           rows: items.map((item) {
             return DataRow(cells: [
-              DataCell(Text(item.date)),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.totalSale))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCash))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCard))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCheque))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.totalCredit))),
-              DataCell(Text(NumberFormat('#,##0.00').format(item.totalBank))),
+              DataCell(Text(item.storeItemId.toString())),
+              DataCell(Text(item.itemName)),
+              DataCell(Text(item.storeType ?? '-')),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.freeQuantity))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.purchasedQuantity))),
+              DataCell(Text(NumberFormat('#,##0.00').format(item.totalPurchaseAmount))),
+              DataCell(Text(item.supplierNames)),
             ]);
           }).toList(),
         ),
@@ -384,60 +254,8 @@ class _DailysalesReportState extends State<DailysalesReport> {
     );
   }
 
-  Widget _buildReportView() {
-
-    if (!showReport || salesummary.isEmpty) {
-      return const Center(
-        child: Text('No data available for the selected period'),
-      );
-    }
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                Text(
-                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Daily Sales Summary Report',
-                  style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'From ${DateFormat('MM/dd/yyyy').format(fromDate!)} To ${DateFormat('MM/dd/yyyy').format(toDate!)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-          _buildReportTable(salesummary),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'Total Sales ($currency): ${NumberFormat('#,##0.00').format(totalAmount)}',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _generatePdf() async {
-    if (!showReport || salesummary.isEmpty) {
+    if (!showReport || purchases.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data available to generate PDF')),
       );
@@ -452,24 +270,20 @@ class _DailysalesReportState extends State<DailysalesReport> {
       final imageBytes = await rootBundle.load('assets/images/skynet_pro.jpg');
       final image = pw.MemoryImage(imageBytes.buffer.asUint8List());
 
-      // Split items into chunks for pagination
-      const int itemsPerPage = 35; // Adjust this number based on your needs
-      final chunks = <List<Dailysales>>[];
-      for (var i = 0; i < salesummary.length; i += itemsPerPage) {
-        chunks.add(
-          salesummary.skip(i).take(itemsPerPage).toList(),
-        );
+      const int itemsPerPage = 25;
+      final chunks = <List<ItemwisePurchase>>[];
+      for (var i = 0; i < purchases.length; i += itemsPerPage) {
+        chunks.add(purchases.skip(i).take(itemsPerPage).toList());
       }
 
-      // Create pages
       for (var i = 0; i < chunks.length; i++) {
         pdf.addPage(
           pw.Page(
-            pageFormat: PdfPageFormat.a4.copyWith(
-              marginLeft: 10.0, // Reduced left margin
-              marginRight: 10.0, // Reduced right margin
-              marginTop: 10.0, // Reduced top margin
-              marginBottom: 10.0, // Reduced bottom margin
+            pageFormat: PdfPageFormat.a4.landscape.copyWith(
+              marginLeft: 10.0,
+              marginRight: 10.0,
+              marginTop: 10.0,
+              marginBottom: 10.0,
             ),
             build: (pw.Context context) {
               return pw.Container(
@@ -477,22 +291,18 @@ class _DailysalesReportState extends State<DailysalesReport> {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // Header
                     if (i == 0) ...[
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.start,
-                        children: [
-                          pw.Image(image, width: 100),
-                        ],
+                        children: [pw.Image(image, width: 100)],
                       ),
                       pw.SizedBox(height: 5),
                       pw.Center(
                         child: pw.Text(
-                          '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} Daily Sales Summary Report',
+                          '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} - Itemwise Purchase Report',
                           style: pw.TextStyle(font: boldFont, fontSize: 14),
                         ),
                       ),
-                      pw.SizedBox(height: 5),
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
@@ -508,52 +318,40 @@ class _DailysalesReportState extends State<DailysalesReport> {
                       ),
                       pw.SizedBox(height: 10),
                     ],
-                    // Table
                     pw.Expanded(
                       child: pw.Table.fromTextArray(
-                        headers: ['Date', 'Total Sale ($currency)', 'Cash ($currency)', 'Card ($currency)', 'Cheque ($currency)', 'Credit ($currency)', 'Bank ($currency)'],
+                        headers: ['Item ID', 'Item Name', 'Store Type', 'Free Qty', 'Purchased Qty', 'Total Amount($currency)', 'Suppliers'],
                         data: chunks[i].map((item) => [
-                          item.date,
-                          NumberFormat('#,##0.00').format(item.totalSale),
-                          NumberFormat('#,##0.00').format(item.totalCash),
-                          NumberFormat('#,##0.00').format(item.totalCard),
-                          NumberFormat('#,##0.00').format(item.totalCheque),
-                          NumberFormat('#,##0.00').format(item.totalCredit),
-                          NumberFormat('#,##0.00').format(item.totalBank),
+                          item.storeItemId.toString(),
+                          item.itemName,
+                          item.storeType ?? '-',
+                          NumberFormat('#,##0.00').format(item.freeQuantity),
+                          NumberFormat('#,##0.00').format(item.purchasedQuantity),
+                          NumberFormat('#,##0.00').format(item.totalPurchaseAmount),
+                          item.supplierNames,
                         ]).toList(),
-                        headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),  // Reduced font size
-                        cellStyle: pw.TextStyle(font: font, fontSize: 8),  // Reduced font size
+                        headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),
+                        cellStyle: pw.TextStyle(font: font, fontSize: 8),
                         headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-                        cellHeight: 20,  // Reduced cell height
+                        cellHeight: 20,
                         columnWidths: {
                           0: const pw.FlexColumnWidth(1),
-                          1: const pw.FlexColumnWidth(1),
-                          2: const pw.FlexColumnWidth(1),
-                          3: const pw.FlexColumnWidth(1),
-                          4: const pw.FlexColumnWidth(1),
-                          5: const pw.FlexColumnWidth(1),
-                          6: const pw.FlexColumnWidth(1),
-                        },
-                        cellAlignments: {
-                          0: pw.Alignment.centerLeft,
-                          1: pw.Alignment.centerRight,
-                          2: pw.Alignment.centerRight,
-                          3: pw.Alignment.centerRight,
-                          4: pw.Alignment.centerRight,
-                          5: pw.Alignment.centerRight,
-                          6: pw.Alignment.centerRight,
+                          1: const pw.FlexColumnWidth(3),
+                          2: const pw.FlexColumnWidth(2),
+                          3: const pw.FlexColumnWidth(2),
+                          4: const pw.FlexColumnWidth(2),
+                          5: const pw.FlexColumnWidth(2),
+                          6: const pw.FlexColumnWidth(3),
                         },
                       ),
                     ),
-
-                    // Footer - only show on last page
                     if (i == chunks.length - 1) ...[
                       pw.SizedBox(height: 10),
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.end,
                         children: [
                           pw.Text(
-                            'Total Sales ($currency): ${NumberFormat("#,##0.00").format(totalAmount)}',
+                            'Total Purchase Amount($currency): ${NumberFormat("#,##0.00").format(totalPurchaseAmount)}',
                             style: pw.TextStyle(font: boldFont, fontSize: 10),
                           ),
                         ],
@@ -573,7 +371,6 @@ class _DailysalesReportState extends State<DailysalesReport> {
                         ],
                       ),
                     ],
-                    // Page number
                     pw.Positioned(
                       bottom: 5,
                       right: 5,
@@ -591,37 +388,33 @@ class _DailysalesReportState extends State<DailysalesReport> {
       }
 
       if (kIsWeb) {
-        // Check if running on mobile browser
         final userAgent = html.window.navigator.userAgent.toLowerCase();
         final isMobile = userAgent.contains('mobile') ||
             userAgent.contains('android') ||
             userAgent.contains('iphone');
 
         if (isMobile) {
-          // For mobile web, generate and trigger download
           final bytes = await pdf.save();
           final blob = html.Blob([bytes], 'application/pdf');
           final url = html.Url.createObjectUrlFromBlob(blob);
           final anchor = html.AnchorElement()
             ..href = url
             ..style.display = 'none'
-            ..download = 'Daily_Sales_Summary_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
+            ..download = 'Itemwise_Purchase_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf';
           html.document.body!.children.add(anchor);
           anchor.click();
           html.document.body!.children.remove(anchor);
           html.Url.revokeObjectUrl(url);
         } else {
-          // For desktop web, use Printing package
           await Printing.layoutPdf(
             onLayout: (PdfPageFormat format) async => pdf.save(),
-            name: 'Daily_Sales_Summary_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+            name: 'Itemwise_Purchase_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
           );
         }
       } else {
-        // For native platforms, use Printing package
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'Daily_Sales_Summary_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+          name: 'Itemwise_Purchase_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
         );
       }
     } catch (e) {
@@ -631,6 +424,57 @@ class _DailysalesReportState extends State<DailysalesReport> {
     } finally {
       setState(() => isLoading = false);
     }
+  }
+
+  Widget _buildReportView() {
+    if (!showReport || purchases.isEmpty) {
+      return const Center(
+        child: Text('No data available for the selected period'),
+      );
+    }
+    return Container(
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                Text(
+                  '${_selectedLocation!.locationName}-${_selectedLocation!.bLocationName} - Itemwise Purchase Report',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'From ${DateFormat('MM/dd/yyyy').format(fromDate!)} To ${DateFormat('MM/dd/yyyy').format(toDate!)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+          _buildReportTable(purchases),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'Total Purchase Amount($currency): ${NumberFormat('#,##0.00').format(totalPurchaseAmount)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -647,7 +491,6 @@ class _DailysalesReportState extends State<DailysalesReport> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // First row with Back and Logout buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -666,15 +509,17 @@ class _DailysalesReportState extends State<DailysalesReport> {
                           color: Colors.white,
                           size: 28,
                         ),
-                        onPressed: _handleLogout,
+                        onPressed: () async {
+                          final loginController = Get.find<LoginController>();
+                          await loginController.clearLoginData();
+                        },
                         tooltip: 'Logout',
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8), // Spacing between rows
-                  // Second row with title
+                  const SizedBox(height: 8),
                   Text(
-                    'Daily Sales Summary',
+                    'Itemwise Purchase Report',
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -687,7 +532,11 @@ class _DailysalesReportState extends State<DailysalesReport> {
             ),
           ),
           body: RefreshIndicator(
-            onRefresh: _onRefresh,
+            onRefresh: () async {
+              if (fromDate != null && toDate != null) {
+                await _generateReport();
+              }
+            },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16.0),
@@ -699,7 +548,34 @@ class _DailysalesReportState extends State<DailysalesReport> {
                       Expanded(
                         child: Card(
                           child: InkWell(
-                            onTap: () => _selectDate(context, true),
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Color(0xFF2A2359),
+                                        onPrimary: Colors.white,
+                                        onSurface: Colors.black,
+                                      ),
+                                      textButtonTheme: TextButtonThemeData(
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(0xFF2A2359),
+                                        ),
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() => fromDate = picked);
+                              }
+                            },
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Column(
@@ -707,17 +583,14 @@ class _DailysalesReportState extends State<DailysalesReport> {
                                 children: [
                                   Text(
                                     'From Date',
-                                    style: GoogleFonts.poppins(
-                                        color: Colors.grey[600]),
+                                    style: GoogleFonts.poppins(color: Colors.grey[600]),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
                                     fromDate != null
-                                        ? DateFormat('yyyy-MM-dd')
-                                        .format(fromDate!)
+                                        ? DateFormat('yyyy-MM-dd').format(fromDate!)
                                         : 'Select Date',
-                                    style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600),
+                                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                                   ),
                                 ],
                               ),
@@ -729,7 +602,34 @@ class _DailysalesReportState extends State<DailysalesReport> {
                       Expanded(
                         child: Card(
                           child: InkWell(
-                            onTap: () => _selectDate(context, false),
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Color(0xFF2A2359),
+                                        onPrimary: Colors.white,
+                                        onSurface: Colors.black,
+                                      ),
+                                      textButtonTheme: TextButtonThemeData(
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(0xFF2A2359),
+                                        ),
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() => toDate = picked);
+                              }
+                            },
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Column(
@@ -737,16 +637,14 @@ class _DailysalesReportState extends State<DailysalesReport> {
                                 children: [
                                   Text(
                                     'To Date',
-                                    style: GoogleFonts.poppins(
-                                        color: Colors.grey[600]),
+                                    style: GoogleFonts.poppins(color: Colors.grey[600]),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
                                     toDate != null
                                         ? DateFormat('yyyy-MM-dd').format(toDate!)
                                         : 'Select Date',
-                                    style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600),
+                                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                                   ),
                                 ],
                               ),
@@ -757,7 +655,6 @@ class _DailysalesReportState extends State<DailysalesReport> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Add Location Dropdown
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -766,12 +663,50 @@ class _DailysalesReportState extends State<DailysalesReport> {
                         children: [
                           Text(
                             'Location',
-                            style: GoogleFonts.poppins(
-                              color: Colors.grey[600],
-                            ),
+                            style: GoogleFonts.poppins(color: Colors.grey[600]),
                           ),
                           const SizedBox(height: 8),
-                          _buildLocationDropdown(),
+                          DropdownButtonFormField<DatabaseLocation>(
+                            value: _selectedLocation,
+                            dropdownColor: Colors.white,
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).primaryColor,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            items: _locations.map((location) {
+                              return DropdownMenuItem<DatabaseLocation>(
+                                value: location,
+                                child: Text(
+                                  "${location.locationName}-${location.bLocationName}",
+                                  style: GoogleFonts.poppins(
+                                    color: const Color(0xFF2A2359),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (DatabaseLocation? newValue) {
+                              setState(() => _selectedLocation = newValue);
+                            },
+                          ),
                         ],
                       ),
                     ),

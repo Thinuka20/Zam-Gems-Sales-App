@@ -37,9 +37,6 @@ class LoginController extends GetxController with StateMixin<Map<String, dynamic
           clientData['datasource'] != null &&
           clientData['details2'] != null; // currency
     } catch (e) {
-      if (kDebugMode) {
-        print('Error checking login state: $e');
-      }
       return false;
     }
   }
@@ -69,14 +66,7 @@ class LoginController extends GetxController with StateMixin<Map<String, dynamic
       // Update the state
       change(parsedData, status: RxStatus.success());
 
-      if (kDebugMode) {
-        print('Login data set successfully');
-        _printLoginDataDebug();
-      }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error setting login data: $e');
-      }
       change(null, status: RxStatus.error(e.toString()));
       _loginData.value = {};
     }
@@ -107,19 +97,12 @@ class LoginController extends GetxController with StateMixin<Map<String, dynamic
       _loginData.value = {};
       change({}, status: RxStatus.empty());
 
-      if (kDebugMode) {
-        print('Login data cleared successfully');
-      }
-
       await Get.offAll(
               () => const LoginPage(),
           transition: Transition.fadeIn,
           duration: const Duration(milliseconds: 300)
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('Error clearing login data: $e');
-      }
       change(null, status: RxStatus.error('Error clearing login data'));
     }
   }
@@ -132,19 +115,6 @@ class LoginController extends GetxController with StateMixin<Map<String, dynamic
   String? get businessType => clientData?['businessType'] as String?;
   String? get specialType => clientData?['details1'] as String?;
   String? get currency => clientData?['details2'] as String?;
-
-  void _printLoginDataDebug() {
-    if (!kDebugMode) return;
-
-    print('Current login state:');
-    print('IsLoggedIn: $isLoggedIn');
-    print('Username: $username');
-    print('Business Name: $businessName');
-    print('Datasource: $datasource');
-    print('Business Type: $businessType');
-    print('Special Type: $specialType');
-    print('Currency: $currency');
-  }
 
   @override
   void onClose() {

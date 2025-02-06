@@ -1,3 +1,4 @@
+import 'package:genix_reports/widgets/user_activity_wrapper.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -214,116 +215,118 @@ class POSDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).primaryColor,
-          automaticallyImplyLeading: false,
-          toolbarHeight: 120,
-          flexibleSpace: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // First row with Back and Logout buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () => Get.back(),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
-                      label: const Text(
-                        'Back',
-                        style: TextStyle(color: Colors.white, fontSize: 20),
+    return UserActivityWrapper(
+      child: SafeArea(
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).primaryColor,
+            automaticallyImplyLeading: false,
+            toolbarHeight: 120,
+            flexibleSpace: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // First row with Back and Logout buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => Get.back(),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                        label: const Text(
+                          'Back',
+                          style: TextStyle(color: Colors.white, fontSize: 20),
+                        ),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
                       ),
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.power_settings_new,
-                        color: Colors.white,
-                        size: 28,
+                      IconButton(
+                        icon: const Icon(
+                          Icons.power_settings_new,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        onPressed: _handleLogout,
+                        tooltip: 'Logout',
                       ),
-                      onPressed: _handleLogout,
-                      tooltip: 'Logout',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8), // Spacing between rows
-                // Second row with title
-                Text(
-                  'Dashboard',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 24,
+                    ],
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  const SizedBox(height: 8), // Spacing between rows
+                  // Second row with title
+                  Text(
+                    'Dashboard',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 24,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        body: RefreshIndicator(
-          onRefresh: controller.fetchDashboardData,
-          child: Obx(() {
-            if (controller.isLoading && controller.dashboardData == null) {
-              return const Center(child: CircularProgressIndicator());
-            }
+          body: RefreshIndicator(
+            onRefresh: controller.fetchDashboardData,
+            child: Obx(() {
+              if (controller.isLoading && controller.dashboardData == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            if (controller.error != null && controller.dashboardData == null) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(controller.error!),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: controller.fetchDashboardData,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final dashboardData = controller.dashboardData;
-            if (dashboardData == null) {
-              return const Center(child: Text('No data available'));
-            }
-
-            return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue.shade50,
-                    Colors.white,
-                  ],
-                ),
-              ),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+              if (controller.error != null && controller.dashboardData == null) {
+                return Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildTopCards(dashboardData.posDashboard),
-                      const SizedBox(height: 20),
-                      _buildSalesGrid(dashboardData.salesSummary),
-                      const SizedBox(height: 20),
-                      _buildTransactionSummary(dashboardData.salesAndReturns),
-                      const SizedBox(height: 20),
-                      _buildHourlySalesChart(),
-                      const SizedBox(height: 20),
+                      Text(controller.error!),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: controller.fetchDashboardData,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              final dashboardData = controller.dashboardData;
+              if (dashboardData == null) {
+                return const Center(child: Text('No data available'));
+              }
+
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.blue.shade50,
+                      Colors.white,
                     ],
                   ),
                 ),
-              ),
-            );
-          }),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildTopCards(dashboardData.posDashboard),
+                        const SizedBox(height: 20),
+                        _buildSalesGrid(dashboardData.salesSummary),
+                        const SizedBox(height: 20),
+                        _buildTransactionSummary(dashboardData.salesAndReturns),
+                        const SizedBox(height: 20),
+                        _buildHourlySalesChart(),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ),
     );

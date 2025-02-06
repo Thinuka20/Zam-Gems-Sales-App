@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:genix_reports/controllers/login_controller.dart';
+import 'package:genix_reports/controllers/session_controller.dart';
 import 'package:genix_reports/pages/login.dart';
 import 'package:get/get.dart';
 
@@ -10,8 +12,14 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // Initialize controllers
+  Get.put(LoginController());
+  Get.put(SessionController());
+
   runApp(const MyApp());
 }
+
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
