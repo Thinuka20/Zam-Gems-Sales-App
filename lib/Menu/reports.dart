@@ -13,6 +13,7 @@ import 'package:genix_reports/retail/gpreport.dart';
 import 'package:genix_reports/retail/grnreport.dart';
 import 'package:genix_reports/retail/salesreport3.dart';
 import 'package:genix_reports/retail/salessummaryretail.dart';
+import 'package:genix_reports/skynet_pro_backery/salessummaryBackery.dart';
 import 'package:genix_reports/widgets/user_activity_wrapper.dart';
 import 'package:genix_reports/zam_gems/iteminvoices.dart';
 import 'package:genix_reports/zam_gems/solditemsreportZam.dart';
@@ -192,7 +193,7 @@ class ReportsMenu extends StatelessWidget {
                 GetBuilder<LoginController>(
                   builder: (controller) {
                     if (controller.specialType != "Retail" &&
-                        controller.specialType != "Retail-Pro") {
+                        controller.specialType != "Retail-Pro" && controller.specialType != "SKYNET Pro-Bakery") {
                       return Column(
                         children: [
                           InkWell(
@@ -206,6 +207,56 @@ class ReportsMenu extends StatelessWidget {
                                 height: 80,
                                 padding:
                                     const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.picture_as_pdf_rounded,
+                                      color: Theme.of(context).primaryColor,
+                                      size: 40,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      'Sales Summary',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(Icons.arrow_forward_ios),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [],
+                      );
+                    }
+                  },
+                ),
+                GetBuilder<LoginController>(
+                  builder: (controller) {
+                    if (controller.specialType == "SKYNET Pro-Bakery") {
+                      return Column(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Get.to(() =>
+                              const SaleSummaryReportBackery()); // Navigate to SoldItemsReport
+                            },
+                            child: Card(
+                              color: Colors.white,
+                              child: Container(
+                                height: 80,
+                                padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.center,
