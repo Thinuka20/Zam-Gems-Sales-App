@@ -350,16 +350,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
           ),
         ),
         body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Theme.of(context).primaryColor.withOpacity(0.05),
-                Colors.white
-              ],
-            ),
-          ),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Form(
@@ -383,8 +373,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                           controller: firstNameController,
                           decoration: _buildInputDecoration(
                               'First Name', Icons.person_outline),
-                          validator: (v) =>
-                              v?.isEmpty ?? true ? 'Required' : null,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -402,7 +390,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                     controller: phoneController,
                     decoration:
                         _buildInputDecoration('Phone', Icons.phone_outlined),
-                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -415,7 +402,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                     controller: addressController,
                     decoration: _buildInputDecoration(
                         'Address', Icons.location_on_outlined),
-                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
                     maxLines: 3,
                   ),
                   const SizedBox(height: 16),
@@ -423,7 +409,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                     controller: nicController,
                     decoration: _buildInputDecoration(
                         'NIC/Passport Number', Icons.badge_outlined),
-                    validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
@@ -451,8 +436,6 @@ class _CustomerCheckInState extends State<CustomerCheckIn> {
                         setState(() => selectedNationality = value);
                       }
                     },
-                    validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 16),
                   // if (rooms.isNotEmpty)

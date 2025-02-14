@@ -745,7 +745,7 @@ class ReportsMenu extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 16),
                                     Text(
-                                      'Purchase Summary Report',
+                                      'Purchase Summary',
                                       style: GoogleFonts.poppins(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 20,
@@ -781,7 +781,7 @@ class ReportsMenu extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 16),
                                     Text(
-                                      'Itemwise Purchase Report',
+                                      'Itemwise Purchase',
                                       style: GoogleFonts.poppins(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 20,

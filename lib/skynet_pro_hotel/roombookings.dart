@@ -52,6 +52,8 @@ class CurrentBookedRoom {
   final String bookingStatus;
   final double total;
   final String room;
+  final String basis;
+  final String agent;
 
   CurrentBookedRoom({
     required this.bookTransId,
@@ -61,6 +63,8 @@ class CurrentBookedRoom {
     required this.bookingStatus,
     required this.total,
     required this.room,
+    required this.basis,
+    required this.agent,
   });
 
   factory CurrentBookedRoom.fromJson(Map<String, dynamic> json) {
@@ -72,6 +76,52 @@ class CurrentBookedRoom {
       bookingStatus: json['bookingStatus'],
       total: json['total'].toDouble(),
       room: json['room'],
+      basis: json['basis'],
+      agent: json['agent'],
+    );
+  }
+}
+
+class RoomDetails {
+  final int roomId;
+  final String roomType;
+  final String roomFloor;
+  final int maximumOccupancy;
+  final String roomStatus;
+  final DateTime lastCleanedDate;
+  final String cleanedBy;
+  final String repairsStatus;
+  final String comment;
+  final String details1;
+  final String details2;
+
+  RoomDetails({
+    required this.roomId,
+    required this.roomType,
+    required this.roomFloor,
+    required this.maximumOccupancy,
+    required this.roomStatus,
+    required this.lastCleanedDate,
+    required this.cleanedBy,
+    required this.repairsStatus,
+    required this.comment,
+    required this.details1,
+    required this.details2,
+  });
+
+  factory RoomDetails.fromJson(Map<String, dynamic> json) {
+    return RoomDetails(
+      roomId: json['roomID'] as int,
+      roomType: json['roomType'] as String,
+      roomFloor: json['roomFloor'] as String,
+      maximumOccupancy: json['maximumOccupancy'] as int,
+      roomStatus: json['roomStatus'] as String,
+      lastCleanedDate: DateTime.parse(json['lastCleanedDate'] as String),
+      cleanedBy: json['cleanedBy'] as String,
+      repairsStatus: json['repairsStatus'] as String,
+      comment: json['comment'] as String,
+      details1: json['details1'] as String,
+      details2: json['details2'] as String,
     );
   }
 }
@@ -91,7 +141,8 @@ class ApiService {
   Future<List<DatabaseLocation>> getLocations() async {
     try {
       final queryParameters = {'connectionString': datasource};
-      final uri = Uri.parse('$baseUrl/locations').replace(queryParameters: queryParameters);
+      final uri = Uri.parse('$baseUrl/locations')
+          .replace(queryParameters: queryParameters);
 
       final response = await http.get(
         uri,
@@ -100,7 +151,9 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final List<dynamic> locationsJson = json.decode(response.body);
-        return locationsJson.map((json) => DatabaseLocation.fromJson(json)).toList();
+        return locationsJson
+            .map((json) => DatabaseLocation.fromJson(json))
+            .toList();
       } else {
         throw Exception('Failed to load locations: ${response.statusCode}');
       }
@@ -122,24 +175,50 @@ class ApiService {
       final uri = Uri.parse('$baseUrl/currentbookedrooms')
           .replace(queryParameters: queryParameters);
 
-
       final response = await http.get(
         uri,
         headers: {'Content-Type': 'application/json'},
       );
 
-
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         final List<dynamic> bookingsJson = json.decode(response.body);
         return bookingsJson
             .map((json) => CurrentBookedRoom.fromJson(json))
-            .where((booking) => booking.bookingStatus.toLowerCase() != 'cancelled')
+            .where(
+                (booking) => booking.bookingStatus.toLowerCase() != 'cancelled')
             .toList();
       } else {
         throw Exception('Failed to load bookings: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Failed to load bookings: $e');
+    }
+  }
+
+  Future<List<RoomDetails>> getAllRooms({
+    required DatabaseLocation location,
+  }) async {
+    try {
+      final queryParameters = {
+        'connectionString': location.dPath,
+      };
+
+      final uri = Uri.parse('$baseUrl/getallrooms')
+          .replace(queryParameters: queryParameters);
+
+      final response = await http.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final List<dynamic> roomsJson = json.decode(response.body);
+        return roomsJson.map((json) => RoomDetails.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load rooms: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to load rooms: $e');
     }
   }
 }
@@ -150,11 +229,12 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
   List<CurrentBookedRoom> bookings = [];
   bool showNavigationButtons = false;
   bool showCards = false;
-  final List<int> allRooms = List.generate(10, (i) => 101 + i);
+  List<RoomDetails> allRooms = [];
   late final ApiService _apiService;
   List<DatabaseLocation> _locations = [];
   DatabaseLocation? _selectedLocation;
   bool _isLoadingLocations = true;
+  bool showLocationDropdown = true; // New state variable
 
   Future<void> _loadLocations() async {
     try {
@@ -174,7 +254,7 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
     }
   }
 
-  Future<void> _fetchBookings() async {
+  Future<void> _fetchRoomsAndBookings() async {
     if (_selectedLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a location')),
@@ -187,13 +267,22 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
     });
 
     try {
-      final fetchedBookings = await _apiService.getCurrentBookings(
+      // Fetch both rooms and bookings in parallel
+      final Future<List<RoomDetails>> roomsFuture = _apiService.getAllRooms(
+        location: _selectedLocation!,
+      );
+
+      final Future<List<CurrentBookedRoom>> bookingsFuture =
+          _apiService.getCurrentBookings(
         date: selectedDate,
         location: _selectedLocation!,
       );
 
+      final results = await Future.wait([roomsFuture, bookingsFuture]);
+
       setState(() {
-        bookings = fetchedBookings;
+        allRooms = results[0] as List<RoomDetails>;
+        bookings = results[1] as List<CurrentBookedRoom>;
         showNavigationButtons = true;
       });
     } catch (e) {
@@ -210,9 +299,18 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
   }
 
   Future<void> _generateData() async {
-    await _fetchBookings();
+    await _fetchRoomsAndBookings();
     setState(() {
       showCards = true;
+      showLocationDropdown = false; // Hide the dropdown after search
+    });
+  }
+
+  void _resetSearch() {
+    setState(() {
+      showCards = false;
+      showLocationDropdown = true;
+      _selectedLocation = null;
     });
   }
 
@@ -239,7 +337,7 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
   }
 
   Future<void> _onRefresh() async {
-      await _generateData();
+    await _generateData();
   }
 
   void _handleLogout() async {
@@ -251,7 +349,7 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
     setState(() {
       selectedDate = selectedDate.add(Duration(days: days));
     });
-    _fetchBookings();
+    _fetchRoomsAndBookings();
   }
 
   Widget _buildLocationDropdown() {
@@ -306,40 +404,52 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
     );
   }
 
-  Widget _buildRoomCard(int roomId) {
+  Widget _buildRoomCard(RoomDetails room) {
     final booking = bookings
-        .where((b) => b.roomId == roomId && b.bookingStatus.toLowerCase() != 'cancelled')
+        .where((b) =>
+            b.roomId == room.roomId &&
+            b.bookingStatus.toLowerCase() != 'cancelled')
         .firstOrNull;
+
+    final bool isAvailable = booking == null;
 
     return InkWell(
       onTap: (booking != null &&
-          booking.bookingStatus.toLowerCase() == 'confirmed' &&
-          _selectedLocation != null)
+              booking.bookingStatus.toLowerCase() == 'confirmed' &&
+              _selectedLocation != null)
           ? () async {
-        final result = await Get.to(() => CustomerCheckIn(
-          bookingId: booking.bookingId,
-          dPath: _selectedLocation!.dPath,
-        ));
-        if (result == true) {
-          _fetchBookings();
-        }
-      }
+              final result = await Get.to(() => CustomerCheckIn(
+                    bookingId: booking.bookingId,
+                    dPath: _selectedLocation!.dPath,
+                  ));
+              if (result == true) {
+                _fetchRoomsAndBookings();
+              }
+            }
           : null,
       child: Card(
         margin: const EdgeInsets.all(4),
-        color: booking != null ? getStatusColor(booking.bookingStatus) : Colors.grey[100],
+        color: booking != null
+            ? getStatusColor(booking.bookingStatus)
+            : Colors.grey[100],
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                booking == null ? 'Room $roomId' : 'Room (${booking.room})',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Room ${room.roomId} (${room.roomType})',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 4),
               if (booking != null) ...[
                 const SizedBox(height: 8),
                 Text(
@@ -352,11 +462,19 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Booking Id: ${booking.bookingId}',
+                  'Booking ID: ${booking.bookingId}',
                   style: GoogleFonts.poppins(fontSize: 13),
                 ),
                 Text(
                   'Status: ${booking.bookingStatus}',
+                  style: GoogleFonts.poppins(fontSize: 13),
+                ),
+                Text(
+                  'Basis: ${booking.basis}',
+                  style: GoogleFonts.poppins(fontSize: 13),
+                ),
+                Text(
+                  'Agent: ${booking.agent}',
                   style: GoogleFonts.poppins(fontSize: 13),
                 ),
                 const Spacer(),
@@ -372,11 +490,12 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                   ),
                 ),
               ] else ...[
+                const Spacer(),
                 Text(
                   'Available',
                   style: GoogleFonts.poppins(
                     color: Colors.grey[600],
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -428,7 +547,7 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                 const SizedBox(height: 8), // Spacing between rows
                 // Second row with title
                 Text(
-                  'Room` Bookings',
+                  'Room Bookings',
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -472,7 +591,7 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                           selectedDate = picked;
                         });
                         if (showCards) {
-                          _fetchBookings();
+                          _fetchRoomsAndBookings();
                         }
                       }
                     },
@@ -487,7 +606,8 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                           ),
                           Text(
                             DateFormat('yyyy-MM-dd').format(selectedDate),
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -495,24 +615,25 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Location',
-                          style: GoogleFonts.poppins(
-                            color: Colors.grey[600],
+                if (showLocationDropdown) // Only show location card if showLocationDropdown is true
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Location',
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey[600],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        _buildLocationDropdown(),
-                      ],
+                          const SizedBox(height: 8),
+                          _buildLocationDropdown(),
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 if (!showCards)
                   SizedBox(
                     width: double.infinity,
@@ -553,7 +674,8 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () => _navigateDate(-1),
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
                             label: Text(
                               'Previous Day',
                               style: GoogleFonts.poppins(color: Colors.white),
@@ -594,19 +716,28 @@ class _CurrentRoomBookingsState extends State<CurrentRoomBookings> {
                   Expanded(
                     child: isLoading
                         ? const Center(child: CircularProgressIndicator())
-                        : GridView.builder(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 1,
-                              childAspectRatio: 1.8,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
-                            ),
-                            itemCount: allRooms.length,
-                            itemBuilder: (context, index) =>
-                                _buildRoomCard(allRooms[index]),
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Check if device width is less than 600 (typical mobile breakpoint)
+                              final isMobile = constraints.maxWidth < 600;
+
+                              return GridView.builder(
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: isMobile ? 1 : 2,
+                                  childAspectRatio: isMobile
+                                      ? 1.7
+                                      : 1.9, // Adjust aspect ratio for 2 columns
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                ),
+                                itemCount: allRooms.length,
+                                itemBuilder: (context, index) =>
+                                    _buildRoomCard(allRooms[index]),
+                              );
+                            },
                           ),
-                  ),
+                  )
                 ],
               ],
             ),

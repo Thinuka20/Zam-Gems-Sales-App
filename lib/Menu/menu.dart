@@ -6,6 +6,7 @@ import 'package:genix_reports/pages/datewise.dart';
 import 'package:genix_reports/pages/dashboard.dart';
 import 'package:genix_reports/Menu/production.dart';
 import 'package:genix_reports/Menu/reports.dart';
+import 'package:genix_reports/pages/passwordchange.dart';
 import 'package:genix_reports/pages/salesreport.dart';
 import 'package:genix_reports/Skynet_Pro/salesreport2.dart';
 import 'package:genix_reports/retail/salesreport3.dart';
@@ -66,122 +67,142 @@ class DashboardPage extends StatelessWidget {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                InkWell(
-                  onTap: () {
-                    Get.to(() => POSDashboard());
-                  },
-                  child: Card(
-                    color: Colors.white,
-                    child: Container(
-                      height: 80,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center, // Centers horizontally
-                        crossAxisAlignment:
-                            CrossAxisAlignment.center, // Centers vertically
-                        children: [
-                          Icon(
-                            Icons.dashboard_rounded,
-                            color: Theme.of(context).primaryColor,
-                            size: 40,
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            'Dashboard',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 20,
-                            ),
-                          ),
-                          const Spacer(),
-                          const Icon(Icons.arrow_forward_ios),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: () {
-                    Get.to(() => const Billdetails());
-                  },
-                  child: Card(
-                    color: Colors.white,
-                    child: Container(
-                      height: 80,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center, // Centers horizontally
-                        crossAxisAlignment:
-                            CrossAxisAlignment.center, // Centers vertically
-                        children: [
-                          Icon(
-                            Icons.receipt_long_rounded,
-                            color: Theme.of(context).primaryColor,
-                            size: 40,
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            'Bill Details',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 20,
-                            ),
-                          ),
-                          const Spacer(),
-                          const Icon(Icons.arrow_forward_ios),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: () {
-                    Get.to(() => const Datewise());
-                  },
-                  child: Card(
-                    color: Colors.white,
-                    child: Container(
-                      height: 80,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center, // Centers horizontally
-                        crossAxisAlignment:
-                            CrossAxisAlignment.center, // Centers vertically
-                        children: [
-                          Icon(
-                            Icons.calendar_month_rounded,
-                            color: Theme.of(context).primaryColor,
-                            size: 40,
-                          ),
-                          const SizedBox(width: 16),
-                          Text(
-                            'Date Wise Sales',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 20,
-                            ),
-                          ),
-                          const Spacer(),
-                          const Icon(Icons.arrow_forward_ios),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
                 GetBuilder<LoginController>(
                   builder: (controller) {
-                    if (controller.specialType != "Retail" && controller.specialType != "Retail-Pro") {
+                    if (controller.specialType != "SKYNET Pro-Hotel") {
                       return Column(
                         children: [
+                          InkWell(
+                            onTap: () {
+                              Get.to(() => POSDashboard());
+                            },
+                            child: Card(
+                              color: Colors.white,
+                              child: Container(
+                                height: 80,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .center, // Centers horizontally
+                                  crossAxisAlignment: CrossAxisAlignment
+                                      .center, // Centers vertically
+                                  children: [
+                                    Icon(
+                                      Icons.dashboard_rounded,
+                                      color: Theme.of(context).primaryColor,
+                                      size: 40,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      'Dashboard',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(Icons.arrow_forward_ios),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 10),
                           InkWell(
                             onTap: () {
-                              final loginController = Get.find<LoginController>();
+                              Get.to(() => const Billdetails());
+                            },
+                            child: Card(
+                              color: Colors.white,
+                              child: Container(
+                                height: 80,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .center, // Centers horizontally
+                                  crossAxisAlignment: CrossAxisAlignment
+                                      .center, // Centers vertically
+                                  children: [
+                                    Icon(
+                                      Icons.receipt_long_rounded,
+                                      color: Theme.of(context).primaryColor,
+                                      size: 40,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      'Bill Details',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(Icons.arrow_forward_ios),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          InkWell(
+                            onTap: () {
+                              Get.to(() => const Datewise());
+                            },
+                            child: Card(
+                              color: Colors.white,
+                              child: Container(
+                                height: 80,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .center, // Centers horizontally
+                                  crossAxisAlignment: CrossAxisAlignment
+                                      .center, // Centers vertically
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_month_rounded,
+                                      color: Theme.of(context).primaryColor,
+                                      size: 40,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      'Date Wise Sales',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(Icons.arrow_forward_ios),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        children: [],
+                      );
+                    }
+                  },
+                ),
+                GetBuilder<LoginController>(
+                  builder: (controller) {
+                    if (controller.specialType != "Retail" &&
+                        controller.specialType != "Retail-Pro" &&
+                        controller.specialType != "SKYNET Pro-Hotel") {
+                      return Column(
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              final loginController =
+                                  Get.find<LoginController>();
                               final specialType = loginController.specialType;
 
                               if (specialType == "GEM") {
@@ -222,6 +243,7 @@ class DashboardPage extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 10),
                         ],
                       );
                     } else {
@@ -231,7 +253,6 @@ class DashboardPage extends StatelessWidget {
                     }
                   },
                 ),
-                const SizedBox(height: 10),
                 InkWell(
                   onTap: () {
                     Get.to(() => const ReportsMenu());
@@ -378,7 +399,7 @@ class DashboardPage extends StatelessWidget {
                               child: Container(
                                 height: 80,
                                 padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                                    const EdgeInsets.symmetric(horizontal: 16),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -413,7 +434,7 @@ class DashboardPage extends StatelessWidget {
                               child: Container(
                                 height: 80,
                                 padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                                    const EdgeInsets.symmetric(horizontal: 16),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -438,6 +459,7 @@ class DashboardPage extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 10),
                         ],
                       );
                     } else {
@@ -446,6 +468,39 @@ class DashboardPage extends StatelessWidget {
                       );
                     }
                   },
+                ),
+                InkWell(
+                  onTap: () {
+                    Get.to(() => const PasswordChangePage());
+                  },
+                  child: Card(
+                    color: Colors.white,
+                    child: Container(
+                      height: 80,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.settings,
+                            color: Theme.of(context).primaryColor,
+                            size: 40,
+                          ),
+                          const SizedBox(width: 16),
+                          Text(
+                            'Settings',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 20,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.arrow_forward_ios),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 30),
               ],
