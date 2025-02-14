@@ -12,6 +12,38 @@ import '../controllers/login_controller.dart';
 final loginController = Get.find<LoginController>();
 final datasource = loginController.datasource;
 
+class DatabaseLocation {
+  final int id;
+  final String databaseName;
+  final String locationName;
+  final String bLocationName;
+  final String dPath;
+  final String? details1;
+  final String? details2;
+
+  DatabaseLocation({
+    required this.id,
+    required this.databaseName,
+    required this.locationName,
+    required this.bLocationName,
+    required this.dPath,
+    this.details1,
+    this.details2,
+  });
+
+  factory DatabaseLocation.fromJson(Map<String, dynamic> json) {
+    return DatabaseLocation(
+      id: json['id'] as int,
+      databaseName: json['databaseName'] as String,
+      locationName: json['locationName'] as String,
+      bLocationName: json['bLocationName'] as String,
+      dPath: json['dPath'] as String,
+      details1: json['details1'] as String?,
+      details2: json['details2'] as String?,
+    );
+  }
+}
+
 class RoomDetailsFull {
   final int roomId;
   final String roomType;
@@ -70,19 +102,58 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
   List<RoomDetailsFull> rooms = [];
   String? errorMessage;
   TextEditingController searchController = TextEditingController();
-
-  void _handleLogout() async {
-    final loginController = Get.find<LoginController>();
-    await loginController.clearLoginData();
-  }
+  List<DatabaseLocation> _locations = [];
+  DatabaseLocation? _selectedLocation;
+  bool _isLoadingLocations = true;
+  bool showLocationDropdown = true;
+  bool showTable = false;
 
   @override
   void initState() {
     super.initState();
-    _loadRoomDetails();
+    _loadLocations();
+  }
+
+  Future<void> _loadLocations() async {
+    try {
+      setState(() => _isLoadingLocations = true);
+
+      final queryParameters = {'connectionString': datasource};
+      final uri = Uri.parse('http://124.43.70.220:7072/Reports/locations')
+          .replace(queryParameters: queryParameters);
+
+      final response = await http.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> locationsJson = json.decode(response.body);
+        setState(() {
+          _locations = locationsJson
+              .map((json) => DatabaseLocation.fromJson(json))
+              .toList();
+          _isLoadingLocations = false;
+        });
+      } else {
+        throw Exception('Failed to load locations: ${response.statusCode}');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingLocations = false;
+        errorMessage = 'Error loading locations: $e';
+      });
+    }
   }
 
   Future<void> _loadRoomDetails() async {
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a location')),
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -90,7 +161,7 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
 
     try {
       final queryParameters = {
-        'connectionString': datasource,
+        'connectionString': _selectedLocation!.dPath,
       };
 
       final uri = Uri.parse('http://124.43.70.220:7072/Reports/getallrooms')
@@ -104,8 +175,9 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
       if (response.statusCode == 200) {
         final List<dynamic> roomsJson = json.decode(response.body);
         setState(() {
-          rooms =
-              roomsJson.map((json) => RoomDetailsFull.fromJson(json)).toList();
+          rooms = roomsJson.map((json) => RoomDetailsFull.fromJson(json)).toList();
+          showTable = true;
+          showLocationDropdown = false;
           isLoading = false;
         });
       } else {
@@ -122,8 +194,65 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
     }
   }
 
-  Future<void> _onRefresh() async {
-      await _loadRoomDetails();
+  void _resetSearch() {
+    setState(() {
+      showTable = false;
+      showLocationDropdown = true;
+      _selectedLocation = null;
+      searchController.clear();
+    });
+  }
+
+  Widget _buildLocationDropdown() {
+    return DropdownButtonFormField<DatabaseLocation>(
+      value: _selectedLocation,
+      dropdownColor: Colors.white,
+      icon: Icon(
+        Icons.arrow_drop_down,
+        color: Theme.of(context).primaryColor,
+      ),
+      decoration: InputDecoration(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 8,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Colors.grey[300]!,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColor,
+            width: 2,
+          ),
+        ),
+      ),
+      items: _locations.map((location) {
+        return DropdownMenuItem<DatabaseLocation>(
+          value: location,
+          child: Text(
+            "${location.locationName}-${location.bLocationName}",
+            style: GoogleFonts.poppins(
+              color: const Color(0xFF2A2359),
+            ),
+          ),
+        );
+      }).toList(),
+      onChanged: (DatabaseLocation? newValue) {
+        setState(() {
+          _selectedLocation = newValue;
+        });
+      },
+    );
   }
 
   List<RoomDetailsFull> getFilteredRooms() {
@@ -141,6 +270,17 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
     }).toList();
   }
 
+  Future<void> _onRefresh() async {
+    if (showTable) {
+      await _loadRoomDetails();
+    }
+  }
+
+  void _handleLogout() async {
+    final loginController = Get.find<LoginController>();
+    await loginController.clearLoginData();
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredRooms = getFilteredRooms();
@@ -156,14 +296,12 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // First row with Back and Logout buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     TextButton.icon(
                       onPressed: () => Get.back(),
-                      icon: const Icon(Icons.arrow_back,
-                          color: Colors.white, size: 24),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
                       label: const Text(
                         'Back',
                         style: TextStyle(color: Colors.white, fontSize: 20),
@@ -181,8 +319,7 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8), // Spacing between rows
-                // Second row with title
+                const SizedBox(height: 8),
                 Text(
                   'Housekeeping Manager',
                   style: GoogleFonts.poppins(
@@ -200,181 +337,248 @@ class _RoomDetailsPageState extends State<RoomDetailsPage> {
           onRefresh: _onRefresh,
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search rooms...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {});
-                  },
-                ),
-              ),
-              Expanded(
-                child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : errorMessage != null
-                        ? Center(child: Text(errorMessage!))
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: SingleChildScrollView(
-                                child: Theme(
-                                  data: Theme.of(context).copyWith(
-                                    dataTableTheme: DataTableThemeData(
-                                      horizontalMargin: 24,
-                                      columnSpacing: 24,
-                                    ),
-                                  ),
-                                  child: DataTable(
-                                    showCheckboxColumn: false, // Remove checkboxes
-                                    headingRowColor: MaterialStateProperty.all(
-                                      Colors.grey[200],
-                                    ),
-                                    columns: [
-                                      DataColumn(
-                                        label: Text(
-                                          'Room ID',
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      DataColumn(
-                                        label: Text(
-                                          'Room Type',
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      DataColumn(
-                                        label: Text(
-                                          'Room Floor',
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      DataColumn(
-                                        label: Text(
-                                          'Room Status',
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      DataColumn(
-                                        label: Text(
-                                          'Repairs',
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                    rows: filteredRooms.map((room) {
-                                      Color? rowColor;
-                                      switch (room.roomStatus) {
-                                        case 'Ready':
-                                          rowColor = Colors.white; // Light red for occupied rooms
-                                        case 'Occupied':
-                                          rowColor = Colors.blue[100]; // Light green for vacant rooms
-                                        case 'Reserved':
-                                          rowColor = Colors.green[100]; // Light yellow for rooms being cleaned
-                                        case 'Not Available':
-                                          rowColor = Colors.redAccent[100]; // Light orange for rooms under maintenance
-                                        case 'Closed for Maintenance':
-                                          rowColor = Colors.yellow[100];
-                                        case 'Under Construction':
-                                          rowColor = Colors.red[200];
-                                        case 'Other':
-                                          rowColor = Colors.white; // Grey for out of order rooms
-                                      }
-                                      return DataRow(
-                                        color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
-                                          // You can also add different colors for selected/hovered states
-                                          if (states.contains(MaterialState.selected)) {
-                                            return Theme.of(context).colorScheme.primary.withOpacity(0.08);
-                                          }
-                                          return rowColor; // Return the color we defined based on status
-                                        }),
-                                        onSelectChanged: (_) async {
-                                          final result = await Get.to(
-                                                () => HousekeepingManager(),
-                                            arguments: {
-                                              'roomData': {
-                                                'roomId': room.roomId,
-                                                'roomType': room.roomType,
-                                                'roomFloor': room.roomFloor,
-                                                'roomStatus': room.roomStatus,
-                                                'maximumOccupancy': room.maximumOccupancy,
-                                                'lastCleanedDate': room.lastCleanedDate,
-                                                'cleanedBy': room.cleanedBy,
-                                                'repairsStatus': room.repairsStatus,
-                                                'comment': room.comment,
-                                                'details1': room.details1,
-                                                'details2': room.details2,
-                                                // Add any additional room properties you need to pass
-                                              }
-                                            },
-                                          );
-
-                                          if (result == 'refresh') {
-                                            _onRefresh();  // Call your function here
-                                          }
-                                        },
-                                        cells: [
-                                          DataCell(
-                                            Text(
-                                              room.roomId.toString(),
-                                              style: GoogleFonts.poppins(),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              room.roomType,
-                                              style: GoogleFonts.poppins(),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              room.roomFloor,
-                                              style: GoogleFonts.poppins(),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              room.roomStatus,
-                                              style: GoogleFonts.poppins(),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              room.repairsStatus,
-                                              style: GoogleFonts.poppins(),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
-                                  ),
+              if (showLocationDropdown)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Location',
+                            style: GoogleFonts.poppins(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildLocationDropdown(),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).primaryColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 2,
+                              ),
+                              onPressed: _loadRoomDetails,
+                              child: isLoading
+                                  ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                                  : Text(
+                                'View Rooms',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
                           ),
-              ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (showTable) ...[
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search rooms...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          onChanged: (value) {
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed: _resetSearch,
+                        tooltip: 'Reset Search',
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : errorMessage != null
+                      ? Center(child: Text(errorMessage!))
+                      : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SingleChildScrollView(
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            dataTableTheme: DataTableThemeData(
+                              horizontalMargin: 24,
+                              columnSpacing: 24,
+                            ),
+                          ),
+                          child: DataTable(
+                            showCheckboxColumn: false,
+                            headingRowColor: MaterialStateProperty.all(
+                              Colors.grey[200],
+                            ),
+                            columns: [
+                              DataColumn(
+                                label: Text(
+                                  'Room ID',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Room Type',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Room Floor',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Room Status',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Repairs',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            rows: filteredRooms.map((room) {
+                              Color? rowColor;
+                              switch (room.roomStatus) {
+                                case 'Ready':
+                                  rowColor = Colors.white;
+                                case 'Occupied':
+                                  rowColor = Colors.blue[100];
+                                case 'Reserved':
+                                  rowColor = Colors.green[100];
+                                case 'Not Available':
+                                  rowColor = Colors.redAccent[100];
+                                case 'Closed for Maintenance':
+                                  rowColor = Colors.yellow[100];
+                                case 'Under Construction':
+                                  rowColor = Colors.red[200];
+                                case 'Other':
+                                  rowColor = Colors.white;
+                              }
+                              return DataRow(
+                                color: MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+                                  if (states.contains(MaterialState.selected)) {
+                                    return Theme.of(context).colorScheme.primary.withOpacity(0.08);
+                                  }
+                                  return rowColor;
+                                }),
+                                onSelectChanged: (_) async {
+                                  final result = await Get.to(
+                                        () => HousekeepingManager(),
+                                    arguments: {
+                                      'roomData': {
+                                        'roomId': room.roomId,
+                                        'roomType': room.roomType,
+                                        'roomFloor': room.roomFloor,
+                                        'roomStatus': room.roomStatus,
+                                        'maximumOccupancy': room.maximumOccupancy,
+                                        'lastCleanedDate': room.lastCleanedDate,
+                                        'cleanedBy': room.cleanedBy,
+                                        'repairsStatus': room.repairsStatus,
+                                        'comment': room.comment,
+                                        'details1': room.details1,
+                                        'details2': room.details2,
+                                      }
+                                    },
+                                  );
+
+                                  if (result == 'refresh') {
+                                    _onRefresh();
+                                  }
+                                },
+                                cells: [
+                                  DataCell(
+                                    Text(
+                                      room.roomId.toString(),
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      room.roomType,
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      room.roomFloor,
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      room.roomStatus,
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      room.repairsStatus,
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
             ],
           ),
         ),

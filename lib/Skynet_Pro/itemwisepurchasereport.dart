@@ -351,7 +351,7 @@ class _ItemwisePurchaseReportState extends State<ItemwisePurchaseReport> {
                         mainAxisAlignment: pw.MainAxisAlignment.end,
                         children: [
                           pw.Text(
-                            'Total Purchase Amount($currency): ${NumberFormat("#,##0.00").format(totalPurchaseAmount)}',
+                            'Total Purchase ($currency): ${NumberFormat("#,##0.00").format(totalPurchaseAmount)}',
                             style: pw.TextStyle(font: boldFont, fontSize: 10),
                           ),
                         ],
@@ -464,7 +464,7 @@ class _ItemwisePurchaseReportState extends State<ItemwisePurchaseReport> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text(
-                'Total Purchase Amount($currency): ${NumberFormat('#,##0.00').format(totalPurchaseAmount)}',
+                'Total Purchase ($currency): ${NumberFormat('#,##0.00').format(totalPurchaseAmount)}',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
